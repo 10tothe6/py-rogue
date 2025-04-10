@@ -139,17 +139,22 @@ def getUICharacter(index):
 # ALSO HANDLES FIRE, may want to rename function
 def refreshEnemyData():
     # killing any enemies with 0 or negative health
-    for i in range(0, len(enemyX)):
-        if (enemyHealth[i] <= 0):
-            enemyX.pop(i)
-            enemyY.pop(i)
-            enemyType.pop(i)
-            enemyHealth.pop(i)
+    startingLength = len(enemyType)
+    for i in range(0, startingLength):
+        j = startingLength - i - 1
+
+        if (enemyHealth[j] <= 0):
+            enemyX.pop(j)
+            enemyY.pop(j)
+            enemyType.pop(j)
+            enemyHealth.pop(j)
 
     # looping through all features and destroying temporary ones that have run out of time
-    for i in range(0, len(featureType) + 1):
-        j = len(featureType) - 1 - i
-        
+    startingLength = len(featureType)
+    for i in range(0, startingLength):
+        j = startingLength - i - 1
+
+        print(j)
         # doesn't matter what type of feature it is, 
         # as long as it has a positive or zero value for its timer
         # keep in mind -1 is for permanent features
@@ -160,7 +165,7 @@ def refreshEnemyData():
             featureX.pop(j)
             featureY.pop(j)
             featureType.pop(j)
-        else:
+        elif (featureTimer[j] > 0):
             featureTimer[j] -= 1
 
 # move every enemy on the screen
@@ -490,7 +495,6 @@ def generateDungeon():
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(roomCenterX[len(roomCenterX)-1])
     featureY.append(roomCenterY[len(roomCenterY)-1])
-
     featureType.append("Exit")
     featureTimer.append(-1)
 
