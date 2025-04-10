@@ -8,9 +8,8 @@ import random
 
 # MAIN TOOD LIST:
 
-# add hit percent to weapons
-# add ranged weapons
 # populate enemies, items etc.
+# crafting  
 
 # ------------------------------------------------------
 # ======================================================
@@ -51,11 +50,22 @@ finalFloorIndex = 10
 # crossbow - less range, more damage
 # arrow - ammo for ranged weapons
 
-itemTypes = ["Health Potion", "Sword", "Spear", "Spellbook", "The Doomscroll"]
-itemReach = ["0", "1", "3", "4", "5"]
-itemDamage = ["0", "3", "2", "1", "5"]
-canEquipItem = [False, True, True, True, True]
+itemTypes = ["Health Potion", "Sword", "Spear", "Spellbook", "The Doomscroll","Hellbow"]
+itemReach = [0, 1, 3, 4, 5, 8]
+itemDamage = [-3, 3, 2, 1, 5, 2]
+canEquipItem = [False, True, True, True, True, True]
+isConsumable = [True, False, False, False, False, False]
+# out of 100
+itemHitChance = [0, 100, 100, 100, 100, 100]
+isItemRanged = [False, False, False, False, False, True]
+# area of effect 
+# for melee weapons, this is how many tiles the attack extends perpindicular to the attack direction
+# for ranged weapons same thing but every direction
+itemArea = [0, 0, 0, 0, 0, 0]
 
+
+
+# things that can show up in a dungeon
 featureTypes = ["Door", "Chest", "Exit", "Flame"]
 
 
@@ -333,14 +343,12 @@ def getEnemyCharacter(x, y):
         
     return "no enemy"
 
-def attack(dir):
+# msg is the command string
+def attack(msg):
+    dir = -1
+    isMelee = False
+
     heldWeapon = getEquippedWeapon()
-
-    if (heldWeapon == "None"):
-        return
-
-    hitX = playerX
-    hitY = playerY
 
     attackRange = 0
     attackDamage = 0
@@ -351,20 +359,77 @@ def attack(dir):
     attackRange = int(attackRange)
     attackDamage = int(attackDamage)
 
-    for i in range(0, attackRange):
-        if (dir == 0):
-            hitX -= 1
-        elif (dir == 1):
-            hitX += 1
-        elif (dir == 2):
-            hitY -= 1
-        elif (dir == 3):
-            hitY += 1
+    # if holding a ranged weapon, the attack command will look like a2,1
+    # if melee, it will look like al, ar, au, ad
+    if (isNumber(getCharacter(msg, 0))):
+        isMelee = False
 
-        if (getElementInList(hitX, hitY, enemyX, enemyY) != -1):
-            enemyHealth[getElementInList(hitX, hitY, enemyX, enemyY)] -= attackDamage
-        if (heldWeapon == "The Doomscroll"):
-            spawnFlame(hitX, hitY)
+        commaIndex = str(msg).find(",")
+
+        hitX = playerX + int(substring(msg, 0, commaIndex))
+        hitY = playerY - int(substring(msg, commaIndex + 1, len(msg) - commaIndex - 1))
+
+        if (abs(hitX - playerX) > attackRange or abs(hitY - playerY) > attackRange):
+            return
+    else:
+        isMelee = True
+
+        hitX = playerX
+        hitY = playerY
+
+        if (getCharacter(msg, 0) == "l"):
+            dir = 0
+        elif (getCharacter(msg, 0) == "r"):
+            dir = 1
+        elif (getCharacter(msg, 0) == "d"):
+            dir = 3
+        if (getCharacter(msg, 0) == "u"):
+            dir = 2
+
+    if (heldWeapon == "None"):
+        return
+    
+    # sometimes a hit can fail, depending on the accuracy of the weapon
+    if (random.randint(0, 100) > itemHitChance[findItemIndex(heldWeapon)]):
+        return
+
+    if (isMelee):
+        # melee logic
+        for i in range(0, attackRange):
+            if (dir == 0):
+                hitX -= 1
+            elif (dir == 1):
+                hitX += 1
+            elif (dir == 2):
+                hitY -= 1
+            elif (dir == 3):
+                hitY += 1
+
+            for j in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
+
+                xMod = 0
+                yMod = 0
+                if (dir == 0 or dir == 1):
+                    yMod = j
+                else:
+                    xMod = j
+                
+                if (getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY) != -1):
+                    enemyHealth[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)] -= attackDamage
+                if (heldWeapon == "The Doomscroll" and not isWall(hitX + j, hitY + i)):
+                    spawnFlame(hitX + xMod, hitY + yMod)
+    else:
+        # ranged logic
+        for i in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
+            for j in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
+
+                if (getElementInList(hitX + j, hitY + i, enemyX, enemyY) != -1):
+                    enemyHealth[getElementInList(hitX + j, hitY + i, enemyX, enemyY)] -= attackDamage
+                if (heldWeapon == "Hellbow" and not isWall(hitX + j, hitY + i)):
+                    spawnFlame(hitX + j, hitY + i)
+
+    if (isConsumable[findItemIndex(heldWeapon)]):
+        inventory.pop(findItemIndex(heldWeapon))
 
 # ====================================
 # WORLD:
@@ -656,22 +721,49 @@ def getEquippedWeapon():
 # move item to index 0 of inventory
 # useful, bc when selecting a weapon the game goes through the indices and picks on in order
 def equipItem(oldIndex):
+    # health potion's are not equipped, they are just used
+    if (itemDamage[findItemIndex(inventory[oldIndex])] < 0):
+        damagePlayer(itemDamage[findItemIndex(inventory[oldIndex])])
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
+        return
+
     inventory.insert(0, inventory[oldIndex])
     inventory.pop(oldIndex + 1)
-
-# given an item, perform a default action
-# usually this just equips the item (as is the case for weapons)
-def useItem(itemName, index):
-    if (itemName == "Health Potion"):
-        inventory.pop(index)
-        # negative value, bc negative damage is health
-        damagePlayer(-3)
-    else:
-        equipItem(index)
 
 # ====================================
 # UTILITY
 # ====================================
+
+def substring(string, startIndex, length):
+    returnString = ""
+    counter = 0
+
+    for i in string:
+        if (counter >= startIndex and counter < startIndex + length):
+            returnString += i
+        counter += 1
+
+    return returnString
+
+def isNumber(string):
+    string = string.replace(" ","")
+
+    for i in string:
+        if (i != "1" and 
+            i != "2" and 
+            i != "3" and 
+            i != "4" and
+            i != "5" and 
+            i != "6" and 
+            i != "7" and 
+            i != "8" and
+            i != "9" and 
+            i != "0" and 
+            i != "-"):
+            return False
+    
+    return True
 
 # are two points next to each other? 
 # diagonal doesn't count!
@@ -917,18 +1009,12 @@ def promptUserForAction():
 
     # equip/use an item
     elif (getCharacter(action, 0) == "e"):
-        useItem(inventory[int(getCharacter(action, 1))], int(getCharacter(action, 1)))
+        equipItem(int(getCharacter(action, 1)))
         return
 
     # attacking (left, right, down, up)
-    elif (action == "al"):
-        attack(0)
-    elif (action == "ar"):
-        attack(1)
-    elif (action == "au"):
-        attack(2)
-    elif (action == "ad"):
-        attack(3)
+    elif(getCharacter(action, 0) == "a"):
+        attack(action.replace("a","").replace(" ",""))
 
     # restarting the game
     elif (action == "x"):
