@@ -9,10 +9,11 @@ import random
 # MAIN TOOD LIST:
 
 # re-do UI to show only: health, floor #, equipped item, # of health pots
-# add the view command to see enemy hp
-# proper loot system
+# proper loot system (chests disappearing after looting)
 # add inventory command to see inventory
 # add important events on the bottom of the screen
+# add hit percent to weapons
+# ranged weapons
 
 # ------------------------------------------------------
 # ======================================================
@@ -23,7 +24,7 @@ import random
 # game config ============
 
 # PLAYER ------
-startingInventory = ["Health Potion", "Sword", "The Doomscroll"]
+startingInventory = ["Health Potion", "Sword"]
 defaultHealth = 10
 # --------
 
@@ -36,7 +37,7 @@ screenHeight = 20
 
 # generation settings
 dungeonRoomCount = 5
-finalFloorIndex = 1
+finalFloorIndex = 10
 
 # item data
 
@@ -59,6 +60,34 @@ itemDamage = ["0", "3", "2", "1", "5"]
 canEquipItem = [False, True, True, True, True]
 
 featureTypes = ["Door", "Chest", "Exit", "Flame"]
+
+
+
+# all the enemies I want to add:
+# (12 enemies, 2 bosses)
+
+# d - dummy (for testing weapon dmg/reach)
+# H - horse (at the start of the game)
+
+# s - swordsman
+# S - spearman
+# a - archer
+# l - longbowman (flaming arrows)
+# b - bomb thrower
+# w - witch
+# n - necromancer
+
+# g - ghost
+# u - undead
+
+# r - rat (fire trail)
+# e - explosive rat (suicide enemy)
+# f - rat on fire
+# R - rat king (secret boss)
+
+# K - actual king (final boss)
+
+
 
 # enemy data
 # s is skeleton, g is ghost
@@ -408,8 +437,7 @@ def isWall(x, y):
             return True
     return False
 
-    # generate the dungeon for the first time, and save the coordinates of all rooms
-def generateDungeon():
+def clearGlobalLists():
     # global refs for lists/variables ---------
     global roomCenterX
     global roomCenterY
@@ -444,6 +472,8 @@ def generateDungeon():
     enemyType = []
     enemyHealth = []
 
+    # generate the dungeon for the first time, and save the coordinates of all rooms
+def generateDungeon():
     currentX = screenWidth/2
     currentY = screenHeight/2
 
@@ -505,49 +535,23 @@ def generateDungeon():
 
 # the final floor is hardcoded
 def generateFinalDungeon():
-    # global refs for lists/variables ---------
-    global roomCenterX
-    global roomCenterY
-    global roomWidth
-    global roomHeight
-
-    global featureX
-    global featureY
-    global featureType
-    global featureTimer
-
-    global enemyX
-    global enemyY
-    global enemyType
-    global enemyHealth
-    # --------------
-
-    # reset every list involved in the world
-    roomCenterX = []
-    roomCenterY = []
-
-    roomWidth = []
-    roomHeight = []
-
-    featureTimer = []
-    featureX = []
-    featureY = []
-    featureType = []
-
-    enemyX = []
-    enemyY = []
-    enemyType = []
-    enemyHealth = []
+    clearGlobalLists()
 
     roomCenterX.append(screenWidth/2)
     roomCenterY.append(screenHeight/2)
     roomWidth.append(12)
     roomHeight.append(4)
 
-    # player goes in the center of the room, for now
-    movePlayer(screenWidth/2, screenHeight/2)
-
     # no need to do anything with the exit, resetting the feature lists deletes it
+
+def generateStartingFloor():
+    clearGlobalLists()
+
+    # since the exit is a feature, we just append its location to all the feature lists
+    featureX.append(screenWidth/2)
+    featureY.append(screenHeight/2)
+    featureType.append("Exit")
+    featureTimer.append(-1)
 
 # i can probably condense these 3 functions
 def spawnFlame(x, y):
@@ -865,9 +869,9 @@ def resetPlayerValues():
 # complete restart
 def startNewGame():
     resetPlayerValues()
-    generateDungeon()
+    generateStartingFloor()
 
-    movePlayer(roomCenterX[0], roomCenterY[0])
+    movePlayer(screenWidth/2 - 10, screenHeight/2)
 
 # called when the player steps over an exit
 def nextFloor():
