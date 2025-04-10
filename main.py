@@ -8,12 +8,9 @@ import random
 
 # MAIN TOOD LIST:
 
-# re-do UI to show only: health, floor #, equipped item, # of health pots
-# proper loot system (chests disappearing after looting)
-# add inventory command to see inventory
-# add important events on the bottom of the screen
 # add hit percent to weapons
-# ranged weapons
+# add ranged weapons
+# populate enemies, items etc.
 
 # ------------------------------------------------------
 # ======================================================
@@ -117,6 +114,9 @@ roomCenterY = []
 roomWidth = []
 roomHeight = []
 
+# whether to surround the dungeon with wall characters
+isDungeonEnclosed = False
+
 # feature data
 
 # i could have 2 sets of lists, one for permanent features and one for temporary ones
@@ -183,7 +183,6 @@ def refreshEnemyData():
     for i in range(0, startingLength):
         j = startingLength - i - 1
 
-        print(j)
         # doesn't matter what type of feature it is, 
         # as long as it has a positive or zero value for its timer
         # keep in mind -1 is for permanent features
@@ -368,7 +367,7 @@ def attack(dir):
             spawnFlame(hitX, hitY)
 
 # ====================================
-# WORLD
+# WORLD:
 # ====================================
 
 # intersecting two lines that are axis-aligned
@@ -396,6 +395,20 @@ def boxIntersection(x1, y1, w1, h1, x2, y2, w2, h2):
         return True
     else: 
         return False
+
+# is the point (x2, y2) inside the box defined by the other variables
+def isInsideBox(x1, y1, w1, h1, x2, y2):
+    if (x2 > x1 - w1 and x2 < x1 + w1 and y2 > y1 - h1 and y2 < y1 + h1):
+        return True
+    else:
+        return False
+    
+def isInsideDungeon(x, y):
+    for i in range(0, len(roomCenterX)):
+        if (isInsideBox(roomCenterX[i], roomCenterY[i], roomWidth[i], roomHeight[i], x, y)):
+            return True
+        
+    return False
 
 # checking if a room that extends w on the x and h on the y axis can be placed at location (x, y)
 def isValidRoomLocation(w, h, x, y):
@@ -474,6 +487,11 @@ def clearGlobalLists():
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon():
+    global isDungeonEnclosed
+    isDungeonEnclosed = True
+
+    clearGlobalLists()
+
     currentX = screenWidth/2
     currentY = screenHeight/2
 
@@ -516,13 +534,16 @@ def generateDungeon():
         roomCenterY.append(currentY)
 
         # spawning chests
-        # if (random.randint(0, 10) > 7 and i < dungeonRoomCount - 1 and i > 0):
-            # spawnChest(currentX, currentY)
+        if (random.randint(0, 10) > 3 and i > 0):
+            spawnChest(currentX, currentY)
 
         prevWidth = width
         prevHeight = height
 
     # since the exit is a feature, we just append its location to all the feature lists
+    if (getFeatureType(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1]) != "None"):
+        removeFeature(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
+
     featureX.append(roomCenterX[len(roomCenterX)-1])
     featureY.append(roomCenterY[len(roomCenterY)-1])
     featureType.append("Exit")
@@ -535,6 +556,9 @@ def generateDungeon():
 
 # the final floor is hardcoded
 def generateFinalDungeon():
+    global isDungeonEnclosed
+    isDungeonEnclosed = True
+
     clearGlobalLists()
 
     roomCenterX.append(screenWidth/2)
@@ -545,6 +569,9 @@ def generateFinalDungeon():
     # no need to do anything with the exit, resetting the feature lists deletes it
 
 def generateStartingFloor():
+    global isDungeonEnclosed
+    isDungeonEnclosed = False
+
     clearGlobalLists()
 
     # since the exit is a feature, we just append its location to all the feature lists
@@ -576,10 +603,38 @@ def getFeatureType(x, y):
         return featureType[getElementInList(x, y, featureX, featureY)]
     else:
         return "None"
+    
+def removeFeature(x, y):
+    featureIndex = getElementInList(x, y, featureX, featureY)
+    featureX.pop(featureIndex)
+    featureY.pop(featureIndex)
+    featureType.pop(featureIndex)
+    featureTimer.pop(featureIndex)
 
 # ====================================
-# INVENTORY
+# INVENTORY:
 # ====================================
+
+def drawInventory():
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+
+    print("Inventory:")
+
+    for i in inventory:
+        print(i)
+
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+    
+
+def addLoot():
+    # for testing, just add a health potion
+    inventory.append(itemTypes[0])
 
 def addItemToInventory(index):
     inventory.append(itemTypes[index])
@@ -651,10 +706,27 @@ def formatNumber(string, charCount):
 # SCREEN
 # ====================================
 
+def indent():
+    for i in range(0, 30):
+        print("")
+
 def drawScreen():
     # spacing, for neatness
-    print("")
-    print("")
+    indent()
+
+    # the upper UI ---------------------------
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+
+    print("Health: " + formatNumber(playerHealth, 3) + "     Floor Number: " + formatNumber(floorNumber, 3) + "     Equipped Item: " + getEquippedWeapon())
+
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+    # ---------------------------
 
     # drawing the world
     currentLine = ""
@@ -672,20 +744,48 @@ def drawScreen():
                 currentLine += "◙"
             elif (getFeatureType(j, i) == "Flame"):
                 currentLine += "!"
-            elif (i == 0):
-                # drawing UI
-                currentLine += str(getUICharacter(j))
             elif (getEnemyCharacter(j, i) != "no enemy"):
                 currentLine += getEnemyCharacter(j, i)
             else:
-                currentLine += "."
+                if (isDungeonEnclosed):
+                    if (isInsideDungeon(j, i)):
+                        currentLine += "."
+                    else:
+                        currentLine += "#"
+                else:
+                    currentLine += "."
         print(currentLine)
         currentLine = ""
 
+    # the lower UI (inventory) ---------------------------
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+
+    print("Inventory:")
+
+    inventoryString = ""
+    for i in inventory:
+        if (len(inventoryString) == 0):
+            inventoryString += i
+        elif (len(inventoryString + ", " + i) < screenWidth):
+            inventoryString += ", " + i
+        else:
+            print(inventoryString)
+            inventoryString = i
+
+    print(inventoryString)
+
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+    # ---------------------------
+
 def blankScreen():
     # spacing, for neatness
-    print("")
-    print("")
+    indent()
 
     defaultCharacter = "."
 
@@ -701,8 +801,7 @@ def fullscreenMessage(msg, showContinueMessage):
     msg = str(msg)
 
     # spacing, for neatness
-    print("")
-    print("")
+    indent()
 
     defaultCharacter = "."
 
@@ -793,16 +892,10 @@ def selectGameMode():
 
     # showing the user what gamemode they picked
     if (gameMode == 0):
-        fullscreenMessage("   Normal mode selected.   ", True)
+        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True)
     else:
-        fullscreenMessage("   Endless mode selected.   ", True)
+        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True)
     
-    input("")
-
-    fullscreenMessage("   Good luck, traveller.   ", True)
-    input("")
-
-    blankScreen()
     input("")
 
 def promptUserForAction():
@@ -911,6 +1004,9 @@ def runGameLogic():
 
     if (getFeatureType(playerX, playerY) == "Exit"):
         nextFloor()
+    elif (getFeatureType(playerX, playerY) == "Chest"):
+        addLoot()
+        removeFeature(playerX, playerY)
 
     drawScreen()
 
