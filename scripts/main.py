@@ -25,7 +25,7 @@ from colorama import Style
 # game config ============
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword"]
+startingInventory = ["Health Potion", "Sword"]
 defaultHealth = 20
 # --------
 
@@ -880,8 +880,6 @@ def getEquippedWeapon():
 # move item to index 0 of inventory
 # useful, bc when selecting a weapon the game goes through the indices and picks on in order
 def equipItem(oldIndex):
-    print(oldIndex)
-    print(inventory[oldIndex])
     # health potion's are not equipped, they are just used
     if (itemDamage[findItemIndex(inventory[oldIndex])] < 0):
         damagePlayer(itemDamage[findItemIndex(inventory[oldIndex])])
@@ -1140,7 +1138,7 @@ def drawLowerUI():
     stringNoFormatting = ""
 
     for i in inventory:
-        if (columnCounter < numColumns):
+        if (columnCounter < numColumns - 1):
             inventoryString = addBlankSpace(inventoryString, int(columnWidth) * int(columnCounter) - len(stringNoFormatting))
             inventoryString += str(indexCounter) + ". "
             inventoryString += addItemFormatting(i) + " "
@@ -1150,14 +1148,23 @@ def drawLowerUI():
             stringNoFormatting += i + " "
 
             columnCounter += 1
-            indexCounter += 1
         else:
+            inventoryString = addBlankSpace(inventoryString, int(columnWidth) * int(columnCounter) - len(stringNoFormatting))
+            inventoryString += str(indexCounter) + ". "
+            inventoryString += addItemFormatting(i) + " "
+
+            stringNoFormatting = addBlankSpace(stringNoFormatting, int(columnWidth) * int(columnCounter) - len(stringNoFormatting))
+            stringNoFormatting += str(indexCounter) + ". "
+            stringNoFormatting += i + " "
+            
             print(inventoryString)
 
             columnCounter = 0
 
             inventoryString = ""
             stringNoFormatting = ""
+        
+        indexCounter += 1
 
     print(inventoryString)
 
@@ -1263,7 +1270,6 @@ def promptUserForAction():
     elif (getCharacter(action, 0) == "e"):
         if (isNumber(action.replace(" ","").replace("e", ""))):
             equipItem(int(action.replace(" ","").replace("e", "")) - 1)
-            drawScreen()
             return
         else:
             invalidCommand()
