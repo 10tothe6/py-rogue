@@ -24,7 +24,7 @@ from colorama import Style
 # game config ============
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword"]
+startingInventory = ["Health Potion", "Sword","Fire Bomb","Fire Potion"]
 defaultHealth = 20
 # --------
 
@@ -40,22 +40,22 @@ finalFloorIndex = 10
 # ---------------------------------
 
 # item data ---------------------------------
-itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow"]
-itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -7, 0, -2, 2, 0, 12]
-specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1] # weapons: 0 is nothing, 1 is fire
-itemReach = [1, 3, 1, 4, 8, 6, 5, 4, 6, 0, 0, 0, 0, 10, 10, 10]
-itemArea = [0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
-canEquipItem = [True, True, True, True, True, True, True, True, True, False, False, False, False, True, True, True]
-isConsumable = [False, False, False, False, False, False, False, True, True, True, True, False, True, False, False, False]
-itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40] # out of 100
-isItemRanged = [False, False, False, False, True, True, True, True, True, False, False, False, False, False, False, True]
+itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow", "Wildflower", "Cave Root","Fire Potion","Strength Potion"]
+itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -10, 0, -2, 2, 0, 12, 0, 0, 0, 0]
+specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 3] # weapons: 0 is nothing, 1 is fire, 2 is fire resistance, 3 is strength
+itemReach = [1, 3, 1, 4, 8, 6, 5, 4, 6, 0, 0, 0, 0, 10, 10, 10, 0]
+itemArea = [0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
+canEquipItem = [True, True, True, True, True, True, True, True, True, False, False, False, False, True, True, True, False, False, False, False]
+isConsumable = [False, False, False, False, False, False, False, True, True, True, True, False, True, False, False, False, False, False, True, True]
+itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40, 0, 0, 0, 0] # out of 100
+isItemRanged = [False, False, False, False, True, True, True, True, True, False, False, False, False, False, False, True, False, False, False, False]
 
-ingredients = ["Mushroom","Bone"]
-weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Book of Piercing", "Book of Flames", "Chaos Bow"]
+ingredients = ["Mushroom","Bone","Cave Root","Wildflower"]
+weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Book of Piercing", "Book of Flames", "Chaos Bow","Health Potion","Superior Potion","Fire Potion","Strength Potion"]
 
 # data for crafting recipes
-craftingRecipes = ["Mushroom,Bone"]
-craftingResults = ["Health Potion"]
+craftingRecipes = ["Mushroom,Cave Root","Mushroom,Wildflower","Bone,Cave Root"]
+craftingResults = ["Health Potion","Fire Potion","Strength Potion"]
 
 # --------------------------------------------
 
@@ -63,6 +63,9 @@ craftingResults = ["Health Potion"]
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron"]
+
+# fire resistance, damage
+statusEffectTimers = [0, 0]
 
 # enemy data ------------------------
 
@@ -72,18 +75,16 @@ featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron
 # l - longbowman (flaming arrows)
 # b - bomb thrower
 # w - witch
-# n - necromancer
 # e - explosive rat (suicide enemy)
 # R - rat king (secret boss)
-# K - actual king (final boss)
 
-enemyCharacters = ["d", "H", "s", "u", "r", "f", "g"]
-enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost"]
-enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1]
-enemyDamage = [0, 0, 5, 3, 1, 1, 8]
-enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6]
-enemyAbility = [0, 0, 0, 0, 0, 1, 2] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead
-enemyRange = [0, 0, 0, 0, 0, 0, 0] # WIP
+enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N"]
+enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer"]
+enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1]
+enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8]
+enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6, 80]
+enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire)
+enemyRange = [0, 0, 0, 0, 0, 0, 0, 0] # WIP
 # ------------------------
 
 # enemy spawning data ------------------------
@@ -116,9 +117,6 @@ roomCenterY = []
 roomWidth = []
 roomHeight = []
 
-# whether to surround the dungeon with wall characters
-isDungeonEnclosed = False
-
 # feature data
 
 # i could have 2 sets of lists, one for permanent features and one for temporary ones
@@ -137,6 +135,9 @@ enemyX = []
 enemyY = []
 enemyType = []
 enemyHealth = []
+
+# variable that determines the boss's attack
+bossCounter = 0
 # --------------
 
 eventMessages = []
@@ -306,6 +307,8 @@ def moveEnemy(index):
     global enemyX
     global enemyY
 
+    global bossCounter
+
     xChange = 0
     yChange = 0
 
@@ -325,6 +328,21 @@ def moveEnemy(index):
         yChange = -1
     elif (dir == 3):
         yChange = 1
+
+    if (enemyAbility[enemyType[index]] == 5):
+        bossCounter += 1
+
+        if (bossCounter == 12 and not isWall(enemyX[index] - xChange, enemyY[index] - yChange) and getEnemyCharacter(enemyX[index] - xChange, enemyY[index] - yChange) == "no enemy"):
+            # spawn unded enemy
+            spawnEnemy(enemyX[index] - xChange, enemyY[index] - yChange, "Undead")
+            bossCounter = 1
+            return
+        elif(bossCounter == 6):
+            for i in range(1, 8):
+                spawnFlame(enemyX[index] + xChange * i, enemyY[index] + yChange * i)
+            return
+        elif(bossCounter % 2 == 0):
+            return
 
     # temporary code to allow dummys and horses (not moving enemies) to work
     # basically skip the rest of the function if the move speed is 0
@@ -373,6 +391,9 @@ def attack(msg):
 
     attackRange = itemReach[findItemIndex(heldWeapon)]
     attackDamage = itemDamage[findItemIndex(heldWeapon)]
+
+    if (statusEffectTimers[1] > 0):
+        attackDamage *= 2
 
     attackRange = int(attackRange)
     attackDamage = int(attackDamage)
@@ -489,6 +510,9 @@ def isInsideBox(x1, y1, w1, h1, x2, y2):
         return False
     
 def isInsideDungeon(x, y):
+    if (len(roomCenterX) == 0):
+        return True
+
     for i in range(0, len(roomCenterX)):
         if (isInsideBox(roomCenterX[i], roomCenterY[i], roomWidth[i], roomHeight[i], x, y)):
             return True
@@ -576,9 +600,6 @@ def clearGlobalLists():
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon():
-    global isDungeonEnclosed
-    isDungeonEnclosed = True
-
     clearGlobalLists()
 
     currentX = screenWidth/2
@@ -644,6 +665,8 @@ def generateDungeon():
     featureType.append("Exit")
     featureTimer.append(-1)
 
+    movePlayer(roomCenterX[0], roomCenterY[0])
+
 def spawnEnemyFromCurrentTable(x, y):
     currentTable = 0
 
@@ -666,9 +689,6 @@ def spawnEnemy(x, y, name):
 
 # the final floor is hardcoded
 def generateFinalDungeon():
-    global isDungeonEnclosed
-    isDungeonEnclosed = True
-
     clearGlobalLists()
 
     roomCenterX.append(screenWidth/2)
@@ -677,13 +697,14 @@ def generateFinalDungeon():
     roomHeight.append(4)
 
     # spawn the final boss
+    spawnEnemy(roomCenterX[0], roomCenterY[0], 7)
+
+    # player is on the left edge of the room
+    movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
 
     # no need to do anything with the exit, resetting the feature lists deletes it
 
 def generateStartingFloor():
-    global isDungeonEnclosed
-    isDungeonEnclosed = False
-
     clearGlobalLists()
 
     # since the exit is a feature, we just append its location to all the feature lists
@@ -700,6 +721,8 @@ def generateStartingFloor():
     spawnCauldron(screenWidth/2 - 2, screenHeight/2 - 2)
 
     spawnNote(screenWidth/2 - 1, screenHeight/2 - 1, "Many descend, few return.")
+
+    movePlayer(screenWidth/2 - 4, screenHeight/2)
 
 def spawnEnemyFromTable(x, y, tableIndex):
     if (tableIndex == 0):
@@ -887,6 +910,19 @@ def equipItem(oldIndex):
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
         return
+    elif (specialType[findItemIndex(inventory[oldIndex])] == 2):
+        recordEvent("Drank " + inventory[oldIndex] + ".")
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
+        statusEffectTimers[0] = 7
+        return
+        
+    elif (specialType[findItemIndex(inventory[oldIndex])] == 3):
+        recordEvent("Drank " + inventory[oldIndex] + ".")
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
+        statusEffectTimers[1] = 5
+        return
     
     recordEvent("Equipped " + inventory[oldIndex] + ".")
 
@@ -1012,16 +1048,13 @@ def drawScreen():
                 currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Chest"):
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
-            elif (getFeatureType(j, i) == "Flame"):
+            elif (getFeatureType(j, i) == "Flame" and isInsideDungeon(j, i)):
                 currentLine += str(Fore.MAGENTA) + "!" + str(Style.RESET_ALL)
             else:
-                if (isDungeonEnclosed):
-                    if (isInsideDungeon(j, i)):
+                if (isInsideDungeon(j, i)):
                         currentLine += str(Style.DIM) + "." + str(Style.RESET_ALL)
-                    else:
-                        currentLine += str(Style.DIM) + "#" + str(Style.RESET_ALL)
                 else:
-                    currentLine += str(Style.DIM) + "." + str(Style.RESET_ALL)
+                    currentLine += str(Style.DIM) + "#" + str(Style.RESET_ALL)
 
         if (i < len(tooltips)):
             currentLine += "  " + tooltips[i]
@@ -1106,6 +1139,18 @@ def fullscreenMessage(msg, showContinueMessage, showUI, colorName):
     if (showUI):
         drawLowerUI()
 
+def getHealthUIColor():
+    if (statusEffectTimers[0] > 0):
+        return str(Fore.YELLOW)
+    else:
+        return str(Fore.RED)
+
+def addDamageFormatting(string):
+    if (statusEffectTimers[1] > 0):
+        return str(Fore.RED) + str(string) + str(Style.RESET_ALL)
+    else:
+        return str(string)
+
 # draw the stuff that shows up above the game worldd
 # right now, thats some basic stats and events
 def drawUpperUI():
@@ -1115,7 +1160,7 @@ def drawUpperUI():
         lineString += "-"
     print(lineString)
 
-    print("Health: " + str(Fore.RED) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.BLUE) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + addItemFormatting(getEquippedWeapon()))
+    print("Health: " + str(getHealthUIColor()) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.BLUE) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + str(addItemFormatting(getEquippedWeapon())) + " (dmg: " + str(addDamageFormatting(itemDamage[getIndexInList(getEquippedWeapon(), itemTypes)])) + ")")
 
     drawDivider()
     # ---------------------------
@@ -1315,9 +1360,15 @@ def promptUserForAction():
     else:
         invalidCommand()
 
-    # fire damages player
-    if (getFeatureType(playerX, playerY) == "Flame"):
-        damagePlayer(1)
+    if (statusEffectTimers[0] <= 0):
+        # fire damages player
+        if (getFeatureType(playerX, playerY) == "Flame"):
+            damagePlayer(1)
+    else:
+        statusEffectTimers[0] -= 1
+
+    if (statusEffectTimers[1] > 0):
+        statusEffectTimers[1] -= 1
 
     for i in range(0, len(enemyType)):
         if (getFeatureType(enemyX[i], enemyY[i]) == "Flame"):
@@ -1345,8 +1396,6 @@ def startNewGame():
     resetPlayerValues()
     generateStartingFloor()
 
-    movePlayer(screenWidth/2 - 4, screenHeight/2)
-
 # called when the player steps over an exit
 def nextFloor():
     global floorNumber
@@ -1355,11 +1404,9 @@ def nextFloor():
     # if playing on normal mode, the final floor needs to spawn
     if (floorNumber == finalFloorIndex and gameMode == 0):
         generateFinalDungeon()
-        movePlayer(roomCenterX[0], roomCenterY[0])
     else:
         # for normal floors, just generate a random dungeon
         generateDungeon()
-        movePlayer(roomCenterX[0], roomCenterY[0])
 
 # called when the player dies
 def gameOver():
