@@ -7,7 +7,6 @@
 
 # ranged enemies
 # bows only work in the current room
-# intros to certain rooms
 # status effects
 
 import random
@@ -445,6 +444,7 @@ def attack(msg):
 
                 if (getElementInList(hitX + j, hitY + i, enemyX, enemyY) != -1):
                     enemyHealth[getElementInList(hitX + j, hitY + i, enemyX, enemyY)] -= attackDamage
+                    recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + j, hitY + i, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
                 if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
                     spawnFlame(hitX + j, hitY + i)
 
@@ -626,7 +626,7 @@ def generateDungeon():
         if (random.randint(0, 10) > 3 and i > 0):
             spawnChest(currentX, currentY)
             if (random.randint(0, 10) > 5):
-                spawnCauldron(currentX, currentY)
+                spawnCauldron(currentX, currentY-1)
 
         # spawning enemies
         if (random.randint(0, 10) > 5):
@@ -650,11 +650,11 @@ def spawnEnemyFromCurrentTable(x, y):
     if (floorNumber < round(finalFloorIndex/4)):
         currentTable = 0
     elif (floorNumber < round(finalFloorIndex/2)):
-        currentTable = 0
+        currentTable = 1
     elif (floorNumber < round(finalFloorIndex/4*3)):
-        currentTable = 0
+        currentTable = 2
     elif (floorNumber < round(finalFloorIndex)):
-        currentTable = 0
+        currentTable = 3
 
     spawnEnemyFromTable(x, y, currentTable)
 
@@ -1045,7 +1045,7 @@ def blankScreen():
         print(currentLine)
         currentLine = ""
 
-def fullscreenMessage(msg, showContinueMessage, showUI):
+def fullscreenMessage(msg, showContinueMessage, showUI, colorName):
     msg = str(msg)
 
     # spacing, for neatness
@@ -1055,6 +1055,20 @@ def fullscreenMessage(msg, showContinueMessage, showUI):
         drawUpperUI()
 
     defaultCharacter = "."
+    textColor = str(Fore.CYAN)
+
+    if (colorName == "red"):
+        textColor = str(Fore.RED)
+    elif (colorName == "blue"):
+        textColor = str(Fore.BLUE)
+    elif (colorName == "cyan"):
+        textColor = str(Fore.CYAN)
+    elif (colorName == "green"):
+        textColor = str(Fore.GREEN)
+    elif (colorName == "magenta"):
+        textColor = str(Fore.MAGENTA)
+    elif (colorName == "yellow"):
+        textColor = str(Fore.YELLOW)
 
     currentLine = ""
     for i in range(screenHeight):
@@ -1062,7 +1076,7 @@ def fullscreenMessage(msg, showContinueMessage, showUI):
             if (i == screenHeight/2):
                 startingIndex = screenWidth / 2 - round(len(msg)/2)
                 if (j >= startingIndex and j < startingIndex + round(len(msg))):
-                    currentLine += str(Fore.CYAN) + getCharacter(msg, j - startingIndex) + str(Style.RESET_ALL)
+                    currentLine += textColor + getCharacter(msg, j - startingIndex) + str(Style.RESET_ALL)
                 else:
                     currentLine += defaultCharacter
             elif (i == screenHeight/2-2):
@@ -1166,7 +1180,8 @@ def drawLowerUI():
         
         indexCounter += 1
 
-    print(inventoryString)
+    if (len(inventoryString) > 0):
+        print(inventoryString)
 
     drawDivider()
     # ---------------------------
@@ -1190,33 +1205,33 @@ def drawDivider():
 
 # go through the intro text, should only happen upon booting the game for the first time
 def runIntro():
-    fullscreenMessage("FakeVoxel presents", True, False)
+    fullscreenMessage("FakeVoxel presents", True, False, "magenta")
     input("")
-    fullscreenMessage("PYROGUE", True, False)
+    fullscreenMessage("PYROGUE", True, False, "magenta")
     input("")
 
     # exposition
-    fullscreenMessage("   First, the war.   ", True, False)
+    fullscreenMessage("   First, the war.   ", True, False, "cyan")
     input("")
-    fullscreenMessage("   Then, the siege.   ", True, False)
-    input("")
-
-    fullscreenMessage("   We held up for almost a month.   ", True, False)
-    input("")
-    fullscreenMessage("   But we couldn't wait forever.   ", True, False)
-    input("")
-    fullscreenMessage("   They wanted the king, those were their terms.   ", True, False)
-    input("")
-    fullscreenMessage("   Well they got what they wanted.   ", True, False)
+    fullscreenMessage("   Then, the siege.   ", True, False, "cyan")
     input("")
 
-    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True, False)
+    fullscreenMessage("   We held up for almost a month.   ", True, False, "cyan")
     input("")
-    fullscreenMessage("   Still wearing the crown.   ", True, False)
+    fullscreenMessage("   But we couldn't wait forever.   ", True, False, "cyan")
     input("")
-    fullscreenMessage("   ...   ", True, False)
+    fullscreenMessage("   They wanted the king, those were their terms.   ", True, False, "cyan")
     input("")
-    fullscreenMessage("   My crown.   ", True, False)
+    fullscreenMessage("   Well they got what they wanted.   ", True, False, "cyan")
+    input("")
+
+    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True, False, "cyan")
+    input("")
+    fullscreenMessage("   Still wearing the crown.   ", True, False, "cyan")
+    input("")
+    fullscreenMessage("   ...   ", True, False, "cyan")
+    input("")
+    fullscreenMessage("   My crown.   ", True, False, "cyan")
     input("")
 
     blankScreen()
@@ -1225,7 +1240,7 @@ def runIntro():
 def selectGameMode():
     global gameMode
 
-    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False, False)
+    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False, False, "cyan")
     gameModeInput = input("")
 
     if (gameModeInput == "normal"):
@@ -1237,9 +1252,9 @@ def selectGameMode():
 
     # showing the user what gamemode they picked
     if (gameMode == 0):
-        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True, False)
+        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True, False, "green")
     else:
-        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True, False)
+        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True, False, "green")
     
     input("")
 
@@ -1348,11 +1363,31 @@ def nextFloor():
 
 # called when the player dies
 def gameOver():
-    fullscreenMessage("   GAME OVER   ", False, True)
+    fullscreenMessage("   GAME OVER   ", False, True, "red")
 
 # called once the player is in the final room and there are no enemies
 def gameWin():
-    fullscreenMessage("   VICTORY   ", False, True)
+    fullscreenMessage("   VICTORY   ", False, True, "green")
+
+def roomIntro():
+    # first dungeon floor
+    if (floorNumber == 1):
+        fullscreenMessage("   The air feels damp. You see something small scurry away.   ", True, True, "cyan")
+        input("")
+    elif (floorNumber == round(finalFloorIndex/4)):
+        fullscreenMessage("   You hear voices down the hall. Did they station guards here?.   ", True, True, "cyan")
+        input("")
+    elif (floorNumber == round(finalFloorIndex/4*2)):
+        fullscreenMessage("   You feel a rush of cold air against your face. A shimmering figure floats in the distance.   ", True, True, "cyan")
+        input("")
+    elif (floorNumber == round(finalFloorIndex/4*3)):
+        fullscreenMessage("   A pile of bones shifts in the corner, and you think back to the siege.  ", True, True, "cyan")
+        input("")
+        fullscreenMessage("   They didn't have more soldiers. But their soldiers couldn't die.  ", True, True, "cyan")
+        input("")
+    elif (floorNumber == finalFloorIndex):
+        fullscreenMessage("   That was how they won the war. Necromancy. And they brought a necromancer here?   ", True, True, "cyan")
+        input("")
 
 # main logic function, calls itself
 # the function that is called every "turn"
@@ -1379,12 +1414,13 @@ def runGameLogic():
 
     if (getFeatureType(playerX, playerY) == "Exit"):
         nextFloor()
+        roomIntro()
     elif (getFeatureType(playerX, playerY) == "Chest"):
         addLoot()
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
-            fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True)
+            fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True, "cyan")
             removeFeature(playerX, playerY)
             input("")
 
