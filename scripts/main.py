@@ -23,13 +23,15 @@ from colorama import Style
 
 # game config ============
 
+versionString = "v0.1"
+
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Fire Bomb","Fire Potion"]
+startingInventory = ["Health Potion", "Sword"]
 defaultHealth = 20
 # --------
 
 # general stuff ---------
-skipIntro = True # skip the lore text
+skipIntro = False # skip the lore text
 screenWidth = 100 # needs to be even numbers!
 screenHeight = 20 # needs to be even numbers!
 # ---------------------------------
@@ -1252,7 +1254,7 @@ def drawDivider():
 def runIntro():
     fullscreenMessage("FakeVoxel presents", True, False, "magenta")
     input("")
-    fullscreenMessage("PYROGUE", True, False, "magenta")
+    fullscreenMessage("PYROGUE" + " (" + versionString + ")", True, False, "magenta")
     input("")
 
     # exposition
@@ -1414,7 +1416,17 @@ def gameOver():
 
 # called once the player is in the final room and there are no enemies
 def gameWin():
+    fullscreenMessage("   The necromancer and his minions fall to the ground, lifeless.   ", True, True, "cyan")
+    input("")
+
+    fullscreenMessage("   You climb down one last set of stairs, and there lies the king.   ", True, True, "cyan")
+    input("")
+
+    fullscreenMessage("   On the ground beside him, the crown.   ", True, True, "cyan")
+    input("")
+
     fullscreenMessage("   VICTORY   ", False, True, "green")
+    input("")
 
 def roomIntro():
     # first dungeon floor
