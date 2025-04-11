@@ -162,6 +162,7 @@ tooltips = ["w -- move up",
 # every other player turn is a "bonus turn", where no other creatures can do anything
 # RIGHT NOW THIS FEATURE IS TURNED OFF
 isBonusTurn = False
+areTipsActive = True
 
 # ------------------------------------------------------
 # ======================================================
@@ -503,7 +504,11 @@ def refreshTemporaryHazards():
 
 # intersecting two lines that are axis-aligned
 # the HORIZONTAL LINE IS FIRST, VERTICAL SECOND
-# def lineInterSection(x1, y1, l1, x2, y2, l2)
+def lineInterSection(x1, y1, l1, x2, y2, l2):
+    if (y1 < y2 + l2 and y1 > y2 - l2 and x1 + l1 > x2 and x1 - l1 < x2):
+        return True
+    else:
+        return False
 
 # checking if a box defined with center (x1, y1) and extends w1 on the x and h1 on the y axis,
 # intersects with a box defined with center (x2, y2) and extends w2 on the x and h2 on the y axis
@@ -523,6 +528,14 @@ def boxIntersection(x1, y1, w1, h1, x2, y2, w2, h2):
     elif (x2 - w2 >= x1 - w1 and x2 - w2 <= x1 + w1 and y2 + h2 >= y1 - h1 and y2 + h2 <= y1 + h1):
         return True
     elif (x2 + w2 >= x1 - w1 and x2 + w2 <= x1 + w1 and y2 + h2 >= y1 - h1 and y2 + h2 <= y1 + h1):
+        return True
+    elif(lineInterSection(x2, y2+h2, w2, x1-w1, y1, h1)):
+        return True
+    elif(lineInterSection(x2, y2-h2, w2, x1+w1, y1, h1)):
+        return True
+    elif(lineInterSection(x1, y1+h1, w1, x2-w2, y2, h2)):
+        return True
+    elif(lineInterSection(x1, y1-h1, w1, x2+w2, y2, h2)):
         return True
     else: 
         return False
@@ -1119,7 +1132,7 @@ def drawScreen():
                 else:
                     currentLine += str(Style.DIM) + "#" + str(Style.RESET_ALL)
 
-        if (i < len(tooltips)):
+        if (i < len(tooltips) and areTipsActive):
             currentLine += "  " + tooltips[i]
         
         print(currentLine)
@@ -1378,6 +1391,8 @@ def promptUserForAction():
     action = input("")
     # y axis is reversed, keep in mind
 
+    global areTipsActive
+
     # player movement ----
     # you can wait just by hitting enter btw!
     if (action == "w"):
@@ -1395,7 +1410,6 @@ def promptUserForAction():
     elif (getCharacter(action, 0) == "e"):
         if (isNumber(action.replace(" ","").replace("e", ""))):
             equipItem(int(action.replace(" ","").replace("e", "")) - 1)
-            return
         else:
             invalidCommand()
 
@@ -1419,6 +1433,17 @@ def promptUserForAction():
     # restarting the game
     elif (action == "r"):
         startNewGame()
+
+    # toggle tips on/off
+    elif (action == "t"):
+        if (areTipsActive):
+            areTipsActive = False
+        else:
+            areTipsActive = True
+
+        # this command doesn't take time
+        drawScreen()
+        promptUserForAction()
 
     elif (action == ""):
         recordEvent("You decide to wait.")
