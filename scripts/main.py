@@ -24,14 +24,15 @@ from colorama import Style
 # game config ============
 
 versionString = "v0.1"
+debugMode = True
+skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword"]
+startingInventory = ["Health Potion", "Sword","Swiftness Potion","Ironskin Potion","Strength Potion"]
 defaultHealth = 20
 # --------
 
 # general stuff ---------
-skipIntro = False # skip the lore text
 screenWidth = 100 # needs to be even numbers!
 screenHeight = 20 # needs to be even numbers!
 # ---------------------------------
@@ -42,22 +43,22 @@ finalFloorIndex = 10
 # ---------------------------------
 
 # item data ---------------------------------
-itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow", "Wildflower", "Cave Root","Fire Potion","Strength Potion"]
-itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -10, 0, -2, 2, 0, 12, 0, 0, 0, 0]
-specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 3] # weapons: 0 is nothing, 1 is fire, 2 is fire resistance, 3 is strength
-itemReach = [1, 3, 1, 4, 8, 6, 5, 4, 6, 0, 0, 0, 0, 10, 10, 10, 0]
-itemArea = [0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
-canEquipItem = [True, True, True, True, True, True, True, True, True, False, False, False, False, True, True, True, False, False, False, False]
-isConsumable = [False, False, False, False, False, False, False, True, True, True, True, False, True, False, False, False, False, False, True, True]
-itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40, 0, 0, 0, 0] # out of 100
-isItemRanged = [False, False, False, False, True, True, True, True, True, False, False, False, False, False, False, True, False, False, False, False]
+itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow", "Wildflower", "Cave Root","Fire Potion","Strength Potion","Swiftness Potion","Strange Berries","Windbloom","Strange Brew","Ironskin Potion"]
+itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -10, 0, -2, 2, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 3, 4, 6, 4, 6, 5] # weapons: 0 is nothing, 1 is fire, 2 is fire resistance, 3 is strength, 4 is speed, 5 is ironskin, 6 is random effect
+itemReach = [1, 3, 1, 4, 8, 6, 5, 4, 6, 0, 0, 0, 0, 10, 10, 10, 0, 0, 9, 4, 14, 3, 4, 10, 3]
+itemArea = [0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
+canEquipItem = [True, True, True, True, True, True, True, True, True, False, False, False, False, True, True, True, False, False, False, False, False, False, False, False, False]
+isConsumable = [False, False, False, False, False, False, False, True, True, True, True, False, True, False, False, False, False, False, True, True, True, True, True, True, True]
+itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40, 100, 100, 100, 100, 100, 100, 100, 100, 100] # out of 100
+isItemRanged = [False, False, False, False, True, True, True, True, True, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False, False]
 
-ingredients = ["Mushroom","Bone","Cave Root","Wildflower"]
-weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Book of Piercing", "Book of Flames", "Chaos Bow","Health Potion","Superior Potion","Fire Potion","Strength Potion"]
+ingredients = ["Mushroom","Bone","Cave Root","Wildflower","Windbloom","Strange Berries"]
+weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Book of Piercing", "Book of Flames", "Chaos Bow","Health Potion","Superior Potion","Fire Potion","Strength Potion","Swiftness Potion","Strange Brew","Ironskin Potion"]
 
 # data for crafting recipes
-craftingRecipes = ["Mushroom,Cave Root","Mushroom,Wildflower","Bone,Cave Root"]
-craftingResults = ["Health Potion","Fire Potion","Strength Potion"]
+craftingRecipes = ["Mushroom,Cave Root", "Mushroom,Wildflower",  "Bone,Cave Root",   "Windbloom,Wildflower",   "Strange Berries,Strange Berries",  "Bone,Wildflower"]
+craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potion",  "Swiftness Potion",       "Strange Brew",                     "Strength Potion"]
 
 # --------------------------------------------
 
@@ -66,8 +67,8 @@ craftingResults = ["Health Potion","Fire Potion","Strength Potion"]
 # cauldrons allow you to craft potions using ingredients
 featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron"]
 
-# fire resistance, damage
-statusEffectTimers = [0, 0]
+# fire resistance, damage, ironskin, speed
+statusEffectTimers = [0, 0, 0, 0]
 
 # enemy data ------------------------
 
@@ -168,20 +169,28 @@ isBonusTurn = False
 # ======================================================
 # ------------------------------------------------------
 
-# function that writes out the UI that you see on the top of the screen
-def getUICharacter(index):
-    inventoryString = "  Inventory:   "
-    for i in inventory:
-        inventoryString += i + ", "
+# ====================================
+# DEBUG
+# ====================================
 
-    if (index < len("Health: ___")):
-        return getCharacter("Health: " + formatNumber(playerHealth, 3), index)
-    elif (index < len("Health: ___") + len(" Score: ___")):
-        return getCharacter(" Score: " + formatNumber(floorNumber, 3), index - len("Health: ___"))
-    elif(index < len(inventoryString) + len(" Score: ___") + len("Health: ___")):
-        return getCharacter(inventoryString, index - len(" Score: ___") - len("Health: ___"))
-    else:
-        return " "
+# as the lists get longer, this function allows me to see what indices I missed
+def debugItemData():
+    print("")
+
+    print("Item names: " + str(len(itemTypes)))
+    print("Item damages: " + str(len(itemDamage)))
+    print("Item reaches: " + str(len(itemReach)))
+    print("Item abilities: " + str(len(specialType)))
+    print("Item areas: " + str(len(itemArea)))
+    print("Can equip: " + str(len(canEquipItem)))
+    print("Is consumable: " + str(len(isConsumable)))
+    print("Hit chance: " + str(len(itemHitChance)))
+    print("Is ranged: " + str(len(isItemRanged)))
+
+    print("")
+
+    # don't run the game until everything looks good
+    input("")
 
 # ====================================
 # COMBAT / MOVEMENT
@@ -200,28 +209,8 @@ def refreshEnemyData():
             enemyType.pop(j)
             enemyHealth.pop(j)
 
-    # looping through all features and destroying temporary ones that have run out of time
-    startingLength = len(featureType)
-    for i in range(0, startingLength):
-        j = startingLength - i - 1
-
-        # doesn't matter what type of feature it is, 
-        # as long as it has a positive or zero value for its timer
-        # keep in mind -1 is for permanent features
-        if (featureTimer[j] == 0):
-            # THIS COULD POSSIBLY CAUSE OTHER FEATURES TO GET MESSED UP BECAUSE THE INDICES SHIFT,
-            # BE CAREFUL
-            featureTimer.pop(j)
-            featureX.pop(j)
-            featureY.pop(j)
-            featureType.pop(j)
-        elif (featureTimer[j] > 0):
-            featureTimer[j] -= 1
-
 # move every enemy on the screen
 def moveAllEnemies():
-    refreshEnemyData()
-
     for i in range(0, len(enemyX)):
         moveEnemy(i)
 
@@ -280,13 +269,28 @@ def getDirectionToPlayer(currentX, currentY, avoidWalls):
 
     return rawDirection
 
-def damagePlayer(value):
+def damagePlayer(value, damageType):
     global playerHealth
 
-    playerHealth -= value
-
     if (value > 0):
-        recordEvent("Took " + str(value) + " damage.")
+        if (damageType == "Fire"):
+            if (statusEffectTimers[0] <= 0):
+                playerHealth -= value
+                # doesn't tell you why you took damage, but that's okay they'll figure it out
+                recordEvent("Took " + str(value) + " damage.")
+            else:
+                # make sure the player knows that the lack of damage isn't a bug
+                recordEvent("Blocked " + str(value) + " damage.")
+        else:
+            if (statusEffectTimers[2] <= 0):
+                playerHealth -= value
+                recordEvent("Took " + str(value) + " damage.")
+            else:
+                recordEvent("Blocked " + str(value) + " damage.")
+    else:
+        # healing items just use negative damage values
+        # there's nothing to limit you from taking one
+        playerHealth -= value
 
     if (playerHealth > defaultHealth):
         playerHealth = defaultHealth
@@ -317,7 +321,7 @@ def moveEnemy(index):
     # damaging the player
     # this is done first, so enemies can't move and attack at the same time
     if (isAdjacent(enemyX[index], enemyY[index], playerX, playerY)):
-        damagePlayer(enemyDamage[enemyType[index]])
+        damagePlayer(enemyDamage[enemyType[index]],"Attack")
         return
 
     dir = getDirectionToPlayer(enemyX[index], enemyY[index], False)
@@ -477,6 +481,25 @@ def attack(msg):
 # ====================================
 # WORLD:
 # ====================================
+
+def refreshTemporaryHazards():
+    # looping through all features and destroying temporary ones that have run out of time
+    startingLength = len(featureType)
+    for i in range(0, startingLength):
+        j = startingLength - i - 1
+
+        # doesn't matter what type of feature it is, 
+        # as long as it has a positive or zero value for its timer
+        # keep in mind -1 is for permanent features
+        if (featureTimer[j] == 0):
+            # THIS COULD POSSIBLY CAUSE OTHER FEATURES TO GET MESSED UP BECAUSE THE INDICES SHIFT,
+            # BE CAREFUL
+            featureTimer.pop(j)
+            featureX.pop(j)
+            featureY.pop(j)
+            featureType.pop(j)
+        elif (featureTimer[j] > 0):
+            featureTimer[j] -= 1
 
 # intersecting two lines that are axis-aligned
 # the HORIZONTAL LINE IS FIRST, VERTICAL SECOND
@@ -841,11 +864,22 @@ def addItemFormatting(itemName):
     itemIndex = findItemIndex(itemName)
 
     if (specialType[itemIndex] == 1):
+        # fire-spawning weapons become magenta
         return str(Fore.MAGENTA) + itemName + str(Style.RESET_ALL)
+    elif (specialType[itemIndex] > 1):
+        # all potions (except healing ones) become blue
+        return str(Fore.BLUE) + itemName + str(Style.RESET_ALL)
     elif (itemDamage[itemIndex] < 0):
+        # healing items become red
         return str(Fore.RED) + itemName + str(Style.RESET_ALL)
+    elif (itemInList(itemName, weapons)):
+        # weapons are yellow
+        return str(Fore.YELLOW) + itemName + str(Style.RESET_ALL)
     else:
+        # anything else (really just potion ingredients) is green
         return str(Fore.GREEN) + itemName + str(Style.RESET_ALL)
+    
+    # not using white for items, for now, because it's harder to read
 
 # called when the player opens a chest, adds the loot from the chest to the inventory
 def addLoot():
@@ -907,23 +941,50 @@ def getEquippedWeapon():
 def equipItem(oldIndex):
     # health potion's are not equipped, they are just used
     if (itemDamage[findItemIndex(inventory[oldIndex])] < 0):
-        damagePlayer(itemDamage[findItemIndex(inventory[oldIndex])])
+        damagePlayer(itemDamage[findItemIndex(inventory[oldIndex])], "Health")
         recordEvent("Healed " + str(itemDamage[findItemIndex(inventory[oldIndex])] * -1) + " health.")
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
         return
+    # fire resistance
     elif (specialType[findItemIndex(inventory[oldIndex])] == 2):
         recordEvent("Drank " + inventory[oldIndex] + ".")
+        statusEffectTimers[0] = itemReach[findItemIndex(inventory[oldIndex])]
+
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
-        statusEffectTimers[0] = 7
         return
-        
+    # strength
     elif (specialType[findItemIndex(inventory[oldIndex])] == 3):
         recordEvent("Drank " + inventory[oldIndex] + ".")
+        statusEffectTimers[1] = itemReach[findItemIndex(inventory[oldIndex])]
+
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
-        statusEffectTimers[1] = 5
+        return
+    # speed
+    elif (specialType[findItemIndex(inventory[oldIndex])] == 4):
+        recordEvent("Drank " + inventory[oldIndex] + ".")
+        statusEffectTimers[3] = itemReach[findItemIndex(inventory[oldIndex])]
+
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
+        return
+    # ironskin
+    elif (specialType[findItemIndex(inventory[oldIndex])] == 5):
+        recordEvent("Drank " + inventory[oldIndex] + ".")
+        statusEffectTimers[2] = itemReach[findItemIndex(inventory[oldIndex])]
+
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
+        return
+    # random effect
+    elif (specialType[findItemIndex(inventory[oldIndex])] == 6):
+        recordEvent("Drank " + inventory[oldIndex] + ".")
+        statusEffectTimers[random.randint(0, len(statusEffectTimers)-1)] = itemReach[findItemIndex(inventory[oldIndex])]
+
+        if (isConsumable[findItemIndex(inventory[oldIndex])]):
+            inventory.pop(oldIndex)
         return
     
     recordEvent("Equipped " + inventory[oldIndex] + ".")
@@ -1142,14 +1203,16 @@ def fullscreenMessage(msg, showContinueMessage, showUI, colorName):
         drawLowerUI()
 
 def getHealthUIColor():
-    if (statusEffectTimers[0] > 0):
+    if (statusEffectTimers[2] > 0):
+        return str(Fore.CYAN)
+    elif (statusEffectTimers[0] > 0):
         return str(Fore.YELLOW)
     else:
         return str(Fore.RED)
 
 def addDamageFormatting(string):
     if (statusEffectTimers[1] > 0):
-        return str(Fore.RED) + str(string) + str(Style.RESET_ALL)
+        return str(Fore.RED) + str(int(string) * 2) + str(Style.RESET_ALL)
     else:
         return str(string)
 
@@ -1362,20 +1425,6 @@ def promptUserForAction():
     else:
         invalidCommand()
 
-    if (statusEffectTimers[0] <= 0):
-        # fire damages player
-        if (getFeatureType(playerX, playerY) == "Flame"):
-            damagePlayer(1)
-    else:
-        statusEffectTimers[0] -= 1
-
-    if (statusEffectTimers[1] > 0):
-        statusEffectTimers[1] -= 1
-
-    for i in range(0, len(enemyType)):
-        if (getFeatureType(enemyX[i], enemyY[i]) == "Flame"):
-            enemyHealth[i] -= 1
-
 # called when you start a new game, resets all the player's stats to default values
 def resetPlayerValues():
     global playerHealth
@@ -1413,6 +1462,7 @@ def nextFloor():
 # called when the player dies
 def gameOver():
     fullscreenMessage("   GAME OVER   ", False, True, "red")
+    input("")
 
 # called once the player is in the final room and there are no enemies
 def gameWin():
@@ -1453,24 +1503,53 @@ def roomIntro():
 def runGameLogic():
     global isBonusTurn
 
+    # check if the game is over (player died, or won) before handling any logic
     if (playerHealth <=0):
         gameOver()
         return
-    
     if (floorNumber == finalFloorIndex and len(enemyType) == 0):
         gameWin()
         return
 
+    # get the player to type a command, and perform whatever logic that does
+    # this function handles all that
     promptUserForAction()
 
-    # only allow creatures to move if it's not the player's bonus turn
+    # only allow creatures to move and potions to deplete if it's not the player's bonus turn
+    # bonus turns happen every other turn, while the player has the swiftness effect
     if (not isBonusTurn):
-        moveAllEnemies()
-        #isBonusTurn = True
-    else:
+        # killing any dead enemies
         refreshEnemyData()
+        # move the remaining ones
+        moveAllEnemies()
+        
+        # give the player a bonus turn next turn if they have swiftness
+        if (statusEffectTimers[3] > 0):
+            isBonusTurn = True
+
+        # fire only damages enemies during a not-bonus turn
+        for i in range(0, len(enemyType)):
+            if (getFeatureType(enemyX[i], enemyY[i]) == "Flame"):
+                enemyHealth[i] -= 1
+
+        # delete any temporary hazards that have run out of time
+        refreshTemporaryHazards()
+
+        # remove 1 from all current status effects, potions do not deplete during bonus turns
+        for i in range(0, len(statusEffectTimers)):
+            if (statusEffectTimers[i] > 0):
+                statusEffectTimers[i] -= 1
+    else:
+        # killing any dead enemies
+        refreshEnemyData()
+
         isBonusTurn = False
 
+    # fire damages player during all turns, even bonus ones
+    if (getFeatureType(playerX, playerY) == "Flame"):
+        damagePlayer(1, "Fire")
+
+    # at the very very end of the turn, do logic relating to features
     if (getFeatureType(playerX, playerY) == "Exit"):
         nextFloor()
         roomIntro()
@@ -1488,6 +1567,9 @@ def runGameLogic():
     runGameLogic()
 
 colorama_init()
+
+if (debugMode):
+    debugItemData()
 
 # the only bit of code that isn't in a function lol
 if (not skipIntro):
