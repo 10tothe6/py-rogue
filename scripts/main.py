@@ -5,10 +5,9 @@
 
 # MAIN TOOD LIST:
 
-# crafting  
-
-# BONUS:
-# shields 
+# ranged enemies
+# bows only work in the current room
+# intros to certain rooms
 # status effects
 
 import random
@@ -25,26 +24,23 @@ from colorama import Style
 
 # game config ============
 
-# PLAYER ------
-startingInventory = ["Health Potion", "Sword"]
+# player stuff ------
+startingInventory = ["Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword","Health Potion", "Sword"]
 defaultHealth = 20
 # --------
 
-# skip the lore text
-skipIntro = True
+# general stuff ---------
+skipIntro = True # skip the lore text
+screenWidth = 100 # needs to be even numbers!
+screenHeight = 20 # needs to be even numbers!
+# ---------------------------------
 
-# needs to be even numbers!
-screenWidth = 100
-screenHeight = 20
-
-# generation settings
-dungeonRoomCount = 5
+# dungeon stuff ---------------------------------
+dungeonRoomCount = 10
 finalFloorIndex = 10
+# ---------------------------------
 
-# item data
-
-# so far 16 items, 12 weapons
-
+# item data ---------------------------------
 itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow"]
 itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -7, 0, -2, 2, 0, 12]
 specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1] # weapons: 0 is nothing, 1 is fire
@@ -55,40 +51,49 @@ isConsumable = [False, False, False, False, False, False, False, True, True, Tru
 itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40] # out of 100
 isItemRanged = [False, False, False, False, True, True, True, True, True, False, False, False, False, False, False, True]
 
+ingredients = ["Mushroom","Bone"]
+weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Book of Piercing", "Book of Flames", "Chaos Bow"]
+
+# data for crafting recipes
+craftingRecipes = ["Mushroom,Bone"]
+craftingResults = ["Health Potion"]
+
+# --------------------------------------------
+
 # things that can show up in a dungeon
-featureTypes = ["Door", "Chest", "Exit", "Flame"]
+# fake exits are second exits that lead to special places
+# cauldrons allow you to craft potions using ingredients
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron"]
 
-# all the enemies I want to add:
-# (12 enemies, 2 bosses)
+# enemy data ------------------------
 
-# d - dummy (for testing weapon dmg/reach)
-# H - horse (at the start of the game)
-
-# s - swordsman
+# enemies to add
 # S - spearman
 # a - archer
 # l - longbowman (flaming arrows)
 # b - bomb thrower
 # w - witch
 # n - necromancer
-
-# g - ghost
-# u - undead
-
-# r - rat 
 # e - explosive rat (suicide enemy)
-# f - rat on fire (fire trail)
 # R - rat king (secret boss)
-
 # K - actual king (final boss)
 
-
-# enemy data
 enemyCharacters = ["d", "H", "s", "u", "r", "f", "g"]
+enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost"]
 enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1]
 enemyDamage = [0, 0, 5, 3, 1, 1, 8]
 enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6]
-enemyAbility = [0, 0, 0, 0, 0, 1, 2]
+enemyAbility = [0, 0, 0, 0, 0, 1, 2] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead
+enemyRange = [0, 0, 0, 0, 0, 0, 0] # WIP
+# ------------------------
+
+# enemy spawning data ------------------------
+# basically the dungeon is divided into quarters, each with a different set of enemies
+enemyTable1 = ["Rat", "Fire Rat"]
+enemyTable2 = ["Rat", "Fire Rat", "Swordsman"]
+enemyTable3 = ["Rat", "Fire Rat", "Ghost"]
+enemyTable4 = ["Undead", "Ghost", "Swordsman"]
+#  ------------------------
 
 # ============
 
@@ -135,9 +140,24 @@ enemyType = []
 enemyHealth = []
 # --------------
 
-tooltips = ["w -- move up", "s -- move down", "a -- move left", "d -- move right", "x num1, num2 -- attack num1 units right and num2 units up", "e num -- equip item # num from inventory", "r -- start new game"]
+eventMessages = []
+
+# these show up on the right side of the screen, always
+tooltips = ["w -- move up", 
+            "s -- move down", 
+            "a -- move left", 
+            "d -- move right", 
+            "",
+            "x num1, num2 -- attack num1 units right and num2 units up", 
+            "",
+            "e num -- equip item # num from inventory", 
+            "",
+            "r -- start new game", 
+            "",
+            "c num1, num2 -- craft num1 + num2 (requires a cauldron beside you)"]
 
 # every other player turn is a "bonus turn", where no other creatures can do anything
+# RIGHT NOW THIS FEATURE IS TURNED OFF
 isBonusTurn = False
 
 # ------------------------------------------------------
@@ -262,14 +282,25 @@ def damagePlayer(value):
     global playerHealth
 
     playerHealth -= value
+
+    if (value > 0):
+        recordEvent("Took " + str(value) + " damage.")
+
     if (playerHealth > defaultHealth):
         playerHealth = defaultHealth
 
-def tryMove(x, y, xChange, yChange):
-    if (isWall(x + xChange, y + yChange) or getFeatureType(x + xChange, y + yChange) == "Chest" or getFeatureType(x + xChange, y + yChange) == "Exit" or getEnemyCharacter(x + xChange, y + yChange) != "no enemy"):
-        return False
+def tryMove(x, y, xChange, yChange, ability):
+    # ability 2 enemie ignore walls
+    if (ability == 2):
+        if (getFeatureType(x + xChange, y + yChange) == "Chest" or getFeatureType(x + xChange, y + yChange) == "Exit" or getEnemyCharacter(x + xChange, y + yChange) != "no enemy" or (x + xChange == playerX and y + yChange == playerY)):
+            return False
+        else:
+            return True
     else:
-        return True
+        if (isWall(x + xChange, y + yChange) or getFeatureType(x + xChange, y + yChange) == "Chest" or getFeatureType(x + xChange, y + yChange) == "Exit" or getEnemyCharacter(x + xChange, y + yChange) != "no enemy" or (x + xChange == playerX and y + yChange == playerY)):
+            return False
+        else:
+            return True
 
 # move an enemy, use different rules based on how that enemy type moves
 def moveEnemy(index):
@@ -278,6 +309,12 @@ def moveEnemy(index):
 
     xChange = 0
     yChange = 0
+
+    # damaging the player
+    # this is done first, so enemies can't move and attack at the same time
+    if (isAdjacent(enemyX[index], enemyY[index], playerX, playerY)):
+        damagePlayer(enemyDamage[enemyType[index]])
+        return
 
     dir = getDirectionToPlayer(enemyX[index], enemyY[index], False)
 
@@ -291,43 +328,25 @@ def moveEnemy(index):
         yChange = 1
 
     # temporary code to allow dummys and horses (not moving enemies) to work
+    # basically skip the rest of the function if the move speed is 0
     if (enemyMoveSpeed[enemyType[index]] == 0):
         return
     
-    # ability 2 enemies can go through walls
-    if (enemyAbility[enemyType[index]] == 2):
-        if (tryMove(enemyX[index], enemyY[index], xChange, yChange)):
-            enemyX[index] += xChange
-            enemyY[index] += yChange
-        else:
-            # if there's a wall in the way, ghosts just move one more space
-            enemyX[index] += xChange * 2
-            enemyY[index] += yChange * 2
-    else:
-        if (tryMove(enemyX[index], enemyY[index], xChange, yChange)):
-            enemyX[index] += xChange
-            enemyY[index] += yChange
+    # the tryMove() function checks whether an obstacle is in the way of the attempted move
+    # it takes in the enemy ability, bc ability 2 enemies ignore walls
+    if (tryMove(enemyX[index], enemyY[index], xChange, yChange, enemyAbility[enemyType[index]])):
+        enemyX[index] += xChange
+        enemyY[index] += yChange
 
     # ability 1 enemies spawn fire trails behind them as they walk
     if (enemyAbility[enemyType[index]] == 1):
         spawnFlame(enemyX[index] - xChange, enemyY[index] - yChange)
 
-    # damaging the player
-    if (enemyX[index] == playerX and enemyY[index] == playerY):
-        if (not isWall(enemyX[index] - xChange, enemyY[index] - yChange)):
-            enemyX[index] -= xChange
-            enemyY[index] -= yChange
-            damagePlayer(enemyDamage[enemyType[index]])
-        else:
-            enemyX[index] -= xChange * 2
-            enemyY[index] -= yChange * 2
-            damagePlayer(enemyDamage[enemyType[index]])
-
 # move the player to a new position, while not allowing them to go through walls
 def movePlayer(newX, newY):
     # skip if there's a wall in the way
     # 999 IQ collision detection
-    if (isWall(newX, newY)):
+    if (isWall(newX, newY) or getEnemyCharacter(newX, newY) != "no enemy"):
         return
     
     global playerX
@@ -416,6 +435,7 @@ def attack(msg):
                 
                 if (getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY) != -1):
                     enemyHealth[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)] -= attackDamage
+                    recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
                 if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
                     spawnFlame(hitX + xMod, hitY + yMod)
     else:
@@ -531,6 +551,8 @@ def clearGlobalLists():
     global enemyY
     global enemyType
     global enemyHealth
+
+    global eventMessages
     # --------------
 
     # reset every list involved in the world
@@ -549,6 +571,8 @@ def clearGlobalLists():
     enemyY = []
     enemyType = []
     enemyHealth = []
+
+    eventMessages = []
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon():
@@ -601,10 +625,12 @@ def generateDungeon():
         # spawning chests
         if (random.randint(0, 10) > 3 and i > 0):
             spawnChest(currentX, currentY)
+            if (random.randint(0, 10) > 5):
+                spawnCauldron(currentX, currentY)
 
         # spawning enemies
         if (random.randint(0, 10) > 5):
-            spawnEnemy(currentX, currentY+1, random.randint(0, len(enemyCharacters) - 1))
+            spawnEnemyFromCurrentTable(currentX, currentY + 1)
 
         prevWidth = width
         prevHeight = height
@@ -618,11 +644,25 @@ def generateDungeon():
     featureType.append("Exit")
     featureTimer.append(-1)
 
-def spawnEnemy(x, y, index):
-    enemyType.append(index)
+def spawnEnemyFromCurrentTable(x, y):
+    currentTable = 0
+
+    if (floorNumber < round(finalFloorIndex/4)):
+        currentTable = 0
+    elif (floorNumber < round(finalFloorIndex/2)):
+        currentTable = 0
+    elif (floorNumber < round(finalFloorIndex/4*3)):
+        currentTable = 0
+    elif (floorNumber < round(finalFloorIndex)):
+        currentTable = 0
+
+    spawnEnemyFromTable(x, y, currentTable)
+
+def spawnEnemy(x, y, name):
+    enemyType.append(getIndexInList(name, enemyNames))
     enemyX.append(x)
     enemyY.append(y)
-    enemyHealth.append(enemyMaxHealth[index])
+    enemyHealth.append(enemyMaxHealth[getIndexInList(name, enemyNames)])
 
 # the final floor is hardcoded
 def generateFinalDungeon():
@@ -636,10 +676,7 @@ def generateFinalDungeon():
     roomWidth.append(12)
     roomHeight.append(4)
 
-    spawnEnemy(screenWidth/2 - 3, screenHeight/2, 5)
-    spawnEnemy(screenWidth/2 + 3, screenHeight/2, 5)
-    spawnEnemy(screenWidth/2, screenHeight/2 - 3, 5)
-    spawnEnemy(screenWidth/2, screenHeight/2 + 3, 5)
+    # spawn the final boss
 
     # no need to do anything with the exit, resetting the feature lists deletes it
 
@@ -655,10 +692,24 @@ def generateStartingFloor():
     featureType.append("Exit")
     featureTimer.append(-1)
 
-    spawnEnemy(screenWidth/2 + 1, screenHeight/2 - 2, 0)
-    spawnEnemy(screenWidth/2 - 12, screenHeight/2 + 2, 1)
+    # a horse and a training dummy spawn at the starting level
+    # the dummy allows you to test weapon damage
+    spawnEnemy(screenWidth/2 + 1, screenHeight/2 - 2, "Dummy")
+    spawnEnemy(screenWidth/2 - 12, screenHeight/2 + 2, "Horse")
 
-    spawnChest(screenWidth/2, screenHeight/2 + 2)
+    spawnCauldron(screenWidth/2 - 2, screenHeight/2 - 2)
+
+    spawnNote(screenWidth/2 - 1, screenHeight/2 - 1, "Many descend, few return.")
+
+def spawnEnemyFromTable(x, y, tableIndex):
+    if (tableIndex == 0):
+        spawnEnemy(x, y, enemyTable1[random.randint(0, len(enemyTable1) - 1)])
+    elif (tableIndex == 1):
+        spawnEnemy(x, y, enemyTable2[random.randint(0, len(enemyTable2) - 1)])
+    elif (tableIndex == 2):
+        spawnEnemy(x, y, enemyTable3[random.randint(0, len(enemyTable3) - 1)])
+    else:
+        spawnEnemy(x, y, enemyTable4[random.randint(0, len(enemyTable4) - 1)])
 
 # i can probably condense these 3 functions
 def spawnFlame(x, y):
@@ -672,11 +723,36 @@ def spawnChest(x, y):
     featureX.append(x)
     featureY.append(y)
     featureTimer.append(-1)
+def spawnCauldron(x, y):
+    featureType.append("Cauldron")
+    featureX.append(x)
+    featureY.append(y)
+    featureTimer.append(-1)
 def spawnDoor(x, y):
     featureType.append("Door")
     featureX.append(x)
     featureY.append(y)
     featureTimer.append(-1)
+def spawnNote(x, y, msg):
+    featureType.append("Note: " + msg)
+    featureX.append(x)
+    featureY.append(y)
+    featureTimer.append(-1)
+
+def isNote(x, y):
+    if (len(getFeatureType(x, y)) > 4):
+        if (substring(getFeatureType(x, y), 0, 4) == "Note"):
+            return True
+    return False
+
+def isNextToFeature(x, y, type):
+    for i in range(0, len(featureType)):
+        if (featureType[i] == type):
+            if (isAdjacent(x, y, featureX[i], featureY[i])):
+                return True
+    
+    return False
+
 
 def getFeatureType(x, y):
     if (getElementInList(x, y, featureX, featureY) != -1):
@@ -695,6 +771,47 @@ def removeFeature(x, y):
 # INVENTORY:
 # ====================================
 
+def tryCraft(userInput):
+    userInput = userInput.strip()
+
+    # first, split the user input into a bunch of indices
+    itemIndices = []
+
+    lastCommaIndex = 0
+
+    for i in range(0, len(userInput)):
+        if (userInput[i] == ","):
+            itemIndices.append(substring(userInput, lastCommaIndex, i - lastCommaIndex))
+            lastCommaIndex = i
+
+    # make sure to get the last argument as well
+    itemIndices.append(str(substring(userInput, lastCommaIndex + 1, len(userInput) - 1- lastCommaIndex)))
+
+    recipeString = ""
+
+    for i in range(0, len(itemIndices)):
+        recipeString += inventory[int(itemIndices[i]) - 1]
+        if (i < len(itemIndices) - 1):
+            recipeString += ","
+    
+    for i in range(0, len(craftingRecipes)):
+        if (craftingRecipes[i] == recipeString):
+            # remove all items from the inventory
+            removeItemsFromInventory(itemIndices)
+
+            # add the crafted item
+            addItemToInventory(getIndexInList(craftingResults[i], itemTypes))
+
+            # tell the user they made an item
+            recordEvent("Crafted a " + craftingResults[i] + ".")
+
+            return
+
+    recordEvent("Tried to craft something, and failed.")
+
+def recordEvent(eventName):
+    eventMessages.append(eventName)
+
 def addItemFormatting(itemName):
     itemIndex = findItemIndex(itemName)
 
@@ -705,13 +822,39 @@ def addItemFormatting(itemName):
     else:
         return str(Fore.GREEN) + itemName + str(Style.RESET_ALL)
 
+# called when the player opens a chest, adds the loot from the chest to the inventory
 def addLoot():
-    for i in range(0,2):
-        # for testing, just add a health potion
-        inventory.append(itemTypes[random.randint(0, len(itemTypes)-1)])
+    # first, give the player a random ingredient
+    itemName = ingredients[random.randint(0, len(ingredients)-1)]
+    inventory.append(itemName)
+    recordEvent("Picked up a " + itemName + ".")
+
+    # then, try and give them a weapon
+    # if they have the weapon already, give them another ingredient
+    itemName = weapons[random.randint(0, len(weapons)-1)]
+    if (itemInList(itemName, inventory)):
+        itemName = ingredients[random.randint(0, len(ingredients)-1)]
+
+    inventory.append(itemName)
+    recordEvent("Picked up a " + itemName + ".")
 
 def addItemToInventory(index):
     inventory.append(itemTypes[index])
+
+def removeItemsFromInventory(indexList):
+    # looping through all features and destroying temporary ones that have run out of time
+    startingLength = len(inventory)
+    for i in range(0, startingLength):
+        j = startingLength - i
+
+        # doesn't matter what type of feature it is, 
+        # as long as it has a positive or zero value for its timer
+        # keep in mind -1 is for permanent features
+        if (itemInList(str(j), indexList)):
+            # THIS COULD POSSIBLY CAUSE OTHER FEATURES TO GET MESSED UP BECAUSE THE INDICES SHIFT,
+            # BE CAREFUL
+            inventory.pop(j-1)
+            indexList.pop(getIndexInList(str(j), indexList))
 
 def findItemIndex(itemName):
     for i in range(0, len(itemTypes)):
@@ -737,12 +880,17 @@ def getEquippedWeapon():
 # move item to index 0 of inventory
 # useful, bc when selecting a weapon the game goes through the indices and picks on in order
 def equipItem(oldIndex):
+    print(oldIndex)
+    print(inventory[oldIndex])
     # health potion's are not equipped, they are just used
     if (itemDamage[findItemIndex(inventory[oldIndex])] < 0):
         damagePlayer(itemDamage[findItemIndex(inventory[oldIndex])])
+        recordEvent("Healed " + str(itemDamage[findItemIndex(inventory[oldIndex])] * -1) + " health.")
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
         return
+    
+    recordEvent("Equipped " + inventory[oldIndex] + ".")
 
     inventory.insert(0, inventory[oldIndex])
     inventory.pop(oldIndex + 1)
@@ -750,6 +898,24 @@ def equipItem(oldIndex):
 # ====================================
 # UTILITY
 # ====================================
+
+def itemInList(item, list):
+    counter = 0
+    for i in list:
+        if (item == i):
+            return True
+        counter += 1
+
+    return False
+
+def getIndexInList(item, list):
+    counter = 0
+    for i in list:
+        if (item == i):
+            return counter
+        counter += 1
+
+    return -1
 
 def substring(string, startIndex, length):
     returnString = ""
@@ -762,22 +928,23 @@ def substring(string, startIndex, length):
 
     return returnString
 
+# boolean function for figuring out if a string represents a number
 def isNumber(string):
+    # get rid of whitespace
     string = string.replace(" ","")
 
+    if (len(string) == 0):
+        return False
+
+    counter = 0
+    
     for i in string:
-        if (i != "1" and 
-            i != "2" and 
-            i != "3" and 
-            i != "4" and
-            i != "5" and 
-            i != "6" and 
-            i != "7" and 
-            i != "8" and
-            i != "9" and 
-            i != "0" and 
-            i != "-"):
+        if (i == "1" or i == "2" or i == "3" or i == "4" or i == "5" or i == "6" or i == "7" or i == "8" or i == "9" or i == "0" or (i == "-" and counter == 0)):
+            # do nothing, this character is fine
+            continue
+        else:
             return False
+        counter += 1
     
     return True
 
@@ -822,19 +989,7 @@ def drawScreen():
     # spacing, for neatness
     indent()
 
-    # the upper UI ---------------------------
-    lineString = ""
-    for i in range(0, screenWidth):
-        lineString += "-"
-    print(lineString)
-
-    print("Health: " + str(Fore.RED) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.BLUE) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + addItemFormatting(getEquippedWeapon()))
-
-    lineString = ""
-    for i in range(0, screenWidth):
-        lineString += "-"
-    print(lineString)
-    # ---------------------------
+    drawUpperUI()
 
     # drawing the world
     currentLine = ""
@@ -842,18 +997,25 @@ def drawScreen():
         for j in range(screenWidth):
             if (playerX == j and playerY == i):
                 currentLine += str(Fore.CYAN) + "&" + str(Style.RESET_ALL)
+            elif (getEnemyCharacter(j, i) != "no enemy"):
+                currentLine += str(Fore.RED) + getEnemyCharacter(j, i) + str(Style.RESET_ALL)
+            elif (isNote(j, i)):
+                currentLine += str(Fore.CYAN) + "~" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Cauldron"):
+                currentLine += str(Fore.GREEN) + "ö" + str(Style.RESET_ALL)
             elif (isWall(j, i)):
                 currentLine += "#"
             elif (getFeatureType(j, i) == "Door"):
                 currentLine += str(Fore.YELLOW) + "◘" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Exit"):
                 currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Fake Exit"):
+                # for now, these have the same character as the normal exit
+                currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Chest"):
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Flame"):
                 currentLine += str(Fore.MAGENTA) + "!" + str(Style.RESET_ALL)
-            elif (getEnemyCharacter(j, i) != "no enemy"):
-                currentLine += str(Fore.RED) + getEnemyCharacter(j, i) + str(Style.RESET_ALL)
             else:
                 if (isDungeonEnclosed):
                     if (isInsideDungeon(j, i)):
@@ -869,31 +1031,7 @@ def drawScreen():
         print(currentLine)
         currentLine = ""
 
-    # the lower UI (inventory) ---------------------------
-    lineString = ""
-    for i in range(0, screenWidth):
-        lineString += "-"
-    print(lineString)
-
-    print("Inventory:")
-
-    inventoryString = ""
-    for i in inventory:
-        if (len(inventoryString) == 0):
-            inventoryString += addItemFormatting(i)
-        elif (len(inventoryString + ", " + i) < screenWidth):
-            inventoryString += ", " + addItemFormatting(i)
-        else:
-            print(inventoryString)
-            inventoryString = i
-
-    print(inventoryString)
-
-    lineString = ""
-    for i in range(0, screenWidth):
-        lineString += "-"
-    print(lineString)
-    # ---------------------------
+    drawLowerUI()
 
 def blankScreen():
     # spacing, for neatness
@@ -909,11 +1047,14 @@ def blankScreen():
         print(currentLine)
         currentLine = ""
 
-def fullscreenMessage(msg, showContinueMessage):
+def fullscreenMessage(msg, showContinueMessage, showUI):
     msg = str(msg)
 
     # spacing, for neatness
     indent()
+
+    if (showUI):
+        drawUpperUI()
 
     defaultCharacter = "."
 
@@ -923,7 +1064,7 @@ def fullscreenMessage(msg, showContinueMessage):
             if (i == screenHeight/2):
                 startingIndex = screenWidth / 2 - round(len(msg)/2)
                 if (j >= startingIndex and j < startingIndex + round(len(msg))):
-                    currentLine += getCharacter(msg, j - startingIndex)
+                    currentLine += str(Fore.CYAN) + getCharacter(msg, j - startingIndex) + str(Style.RESET_ALL)
                 else:
                     currentLine += defaultCharacter
             elif (i == screenHeight/2-2):
@@ -950,6 +1091,91 @@ def fullscreenMessage(msg, showContinueMessage):
         print(currentLine)
         currentLine = ""
 
+    if (showUI):
+        drawLowerUI()
+
+# draw the stuff that shows up above the game worldd
+# right now, thats some basic stats and events
+def drawUpperUI():
+    # player stats ---------------------------
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
+
+    print("Health: " + str(Fore.RED) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.BLUE) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + addItemFormatting(getEquippedWeapon()))
+
+    drawDivider()
+    # ---------------------------
+
+    # event messages ---------------
+    eventString = str(Fore.CYAN)
+    global eventMessages
+
+    for i in eventMessages:
+        eventString += i + " "
+
+    eventString += str(Style.RESET_ALL)
+    print(eventString)
+    eventMessages = []
+
+    drawDivider()
+    # ---------------------------
+
+# draw the stuff that shows up under the game world
+# right now, that's the inventory
+def drawLowerUI():
+    # the lower UI (inventory) ---------------------------
+    drawDivider()
+
+    print("Inventory:")
+    
+    # the inventory is made up of 4 columns, each with a number and an item
+    numColumns = 4
+    columnWidth = int(screenWidth/4)
+
+    indexCounter = 1
+    columnCounter = 0
+    inventoryString = ""
+    stringNoFormatting = ""
+
+    for i in inventory:
+        if (columnCounter < numColumns):
+            inventoryString = addBlankSpace(inventoryString, int(columnWidth) * int(columnCounter) - len(stringNoFormatting))
+            inventoryString += str(indexCounter) + ". "
+            inventoryString += addItemFormatting(i) + " "
+
+            stringNoFormatting = addBlankSpace(stringNoFormatting, int(columnWidth) * int(columnCounter) - len(stringNoFormatting))
+            stringNoFormatting += str(indexCounter) + ". "
+            stringNoFormatting += i + " "
+
+            columnCounter += 1
+            indexCounter += 1
+        else:
+            print(inventoryString)
+
+            columnCounter = 0
+
+            inventoryString = ""
+            stringNoFormatting = ""
+
+    print(inventoryString)
+
+    drawDivider()
+    # ---------------------------
+
+def addBlankSpace(inputString, spaceCount):
+    for i in range(0, spaceCount):
+        inputString += " "
+
+    return inputString
+
+# draws a dividing line (UI)
+def drawDivider():
+    lineString = ""
+    for i in range(0, screenWidth):
+        lineString += "-"
+    print(lineString)
 
 # ====================================
 # GAME LOGIC
@@ -957,33 +1183,33 @@ def fullscreenMessage(msg, showContinueMessage):
 
 # go through the intro text, should only happen upon booting the game for the first time
 def runIntro():
-    fullscreenMessage("FakeVoxel presents", True)
+    fullscreenMessage("FakeVoxel presents", True, False)
     input("")
-    fullscreenMessage("PYROGUE", True)
+    fullscreenMessage("PYROGUE", True, False)
     input("")
 
     # exposition
-    fullscreenMessage("   First, the war.   ", True)
+    fullscreenMessage("   First, the war.   ", True, False)
     input("")
-    fullscreenMessage("   Then, the siege.   ", True)
-    input("")
-
-    fullscreenMessage("   We held up for almost a month.   ", True)
-    input("")
-    fullscreenMessage("   But we couldn't wait forever.   ", True)
-    input("")
-    fullscreenMessage("   They wanted the king, those were their terms.   ", True)
-    input("")
-    fullscreenMessage("   Well they got what they wanted.   ", True)
+    fullscreenMessage("   Then, the siege.   ", True, False)
     input("")
 
-    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True)
+    fullscreenMessage("   We held up for almost a month.   ", True, False)
     input("")
-    fullscreenMessage("   Still wearing the crown.   ", True)
+    fullscreenMessage("   But we couldn't wait forever.   ", True, False)
     input("")
-    fullscreenMessage("   ...   ", True)
+    fullscreenMessage("   They wanted the king, those were their terms.   ", True, False)
     input("")
-    fullscreenMessage("   My crown.   ", True)
+    fullscreenMessage("   Well they got what they wanted.   ", True, False)
+    input("")
+
+    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True, False)
+    input("")
+    fullscreenMessage("   Still wearing the crown.   ", True, False)
+    input("")
+    fullscreenMessage("   ...   ", True, False)
+    input("")
+    fullscreenMessage("   My crown.   ", True, False)
     input("")
 
     blankScreen()
@@ -992,7 +1218,7 @@ def runIntro():
 def selectGameMode():
     global gameMode
 
-    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False)
+    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False, False)
     gameModeInput = input("")
 
     if (gameModeInput == "normal"):
@@ -1004,11 +1230,17 @@ def selectGameMode():
 
     # showing the user what gamemode they picked
     if (gameMode == 0):
-        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True)
+        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True, False)
     else:
-        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True)
+        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True, False)
     
     input("")
+
+def invalidCommand():
+    # the player inputted a command that isn't valid
+    recordEvent("That's not a valid command, no time passes.")
+    drawScreen()
+    promptUserForAction()
 
 def promptUserForAction():
     action = input("")
@@ -1029,16 +1261,38 @@ def promptUserForAction():
 
     # equip/use an item
     elif (getCharacter(action, 0) == "e"):
-        equipItem(int(getCharacter(action.replace(" ",""), 1)) - 1)
-        return
+        if (isNumber(action.replace(" ","").replace("e", ""))):
+            equipItem(int(action.replace(" ","").replace("e", "")) - 1)
+            drawScreen()
+            return
+        else:
+            invalidCommand()
 
     # attacking (left, right, down, up)
     elif(getCharacter(action, 0) == "x"):
-        attack(action.replace("x","").replace(" ",""))
+        if (len(action) < 2):
+            invalidCommand()
+        else:
+            attack(action.replace("x","").replace(" ",""))
+
+    # attempting to craft an item
+    elif (getCharacter(action, 0) == "c"):
+        if (isNextToFeature(playerX, playerY, "Cauldron")):
+            tryCraft(action.replace("c","").replace(" ",""))
+        else:
+            # can't craft if not next to a cauldron
+            recordEvent("You can't craft when not next to a cauldron, no time passes.")
+            drawScreen()
+            promptUserForAction()
 
     # restarting the game
     elif (action == "r"):
         startNewGame()
+
+    elif (action == ""):
+        recordEvent("You decide to wait.")
+    else:
+        invalidCommand()
 
     # fire damages player
     if (getFeatureType(playerX, playerY) == "Flame"):
@@ -1070,7 +1324,7 @@ def startNewGame():
     resetPlayerValues()
     generateStartingFloor()
 
-    movePlayer(screenWidth/2 - 10, screenHeight/2)
+    movePlayer(screenWidth/2 - 4, screenHeight/2)
 
 # called when the player steps over an exit
 def nextFloor():
@@ -1088,7 +1342,11 @@ def nextFloor():
 
 # called when the player dies
 def gameOver():
-    fullscreenMessage("GAME OVER", True)
+    fullscreenMessage("   GAME OVER   ", False, True)
+
+# called once the player is in the final room and there are no enemies
+def gameWin():
+    fullscreenMessage("   VICTORY   ", False, True)
 
 # main logic function, calls itself
 # the function that is called every "turn"
@@ -1097,6 +1355,10 @@ def runGameLogic():
 
     if (playerHealth <=0):
         gameOver()
+        return
+    
+    if (floorNumber == finalFloorIndex and len(enemyType) == 0):
+        gameWin()
         return
 
     promptUserForAction()
@@ -1114,6 +1376,11 @@ def runGameLogic():
     elif (getFeatureType(playerX, playerY) == "Chest"):
         addLoot()
         removeFeature(playerX, playerY)
+    elif (len(getFeatureType(playerX, playerY)) > 4):
+        if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
+            fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True)
+            removeFeature(playerX, playerY)
+            input("")
 
     drawScreen()
 
