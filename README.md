@@ -4,7 +4,7 @@ Things were never the same after the siege. The crown has been stolen. The kingd
 
 This is a roguelike game written in python, that runs in a windows terminal. It was made as a school assignment.
 
-#Featues:
+**Featues:
 - randomly generated dungeons
 - 5 enemies
 - 2 bosses
