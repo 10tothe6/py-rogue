@@ -28,7 +28,7 @@ debugMode = True
 skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Swiftness Potion","Ironskin Potion","Strength Potion"]
+startingInventory = ["Health Potion", "Sword","Swiftness Potion","Ironskin Potion","Strength Potion","Bomb"]
 defaultHealth = 20
 # --------
 
@@ -44,10 +44,10 @@ finalFloorIndex = 10
 
 # item data ---------------------------------
 itemTypes = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow", "Bomb", "Fire Bomb", "Health Potion", "Superior Potion", "Bone", "Mushroom", "Book of Piercing", "Book of Flames", "Chaos Bow", "Wildflower", "Cave Root","Fire Potion","Strength Potion","Swiftness Potion","Strange Berries","Windbloom","Strange Brew","Ironskin Potion"]
-itemDamage = [4, 3, 3, 2, 2, 3, 3, 6, 4, -4, -10, 0, -2, 2, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-specialType = [0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 3, 4, 6, 4, 6, 5] # weapons: 0 is nothing, 1 is fire, 2 is fire resistance, 3 is strength, 4 is speed, 5 is ironskin, 6 is random effect
-itemReach = [1, 3, 1, 4, 8, 6, 5, 4, 6, 0, 0, 0, 0, 10, 10, 10, 0, 0, 9, 4, 14, 3, 4, 10, 3]
-itemArea = [0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
+itemDamage = [4, 3, 3, 2, 2, 3, 3, 8, 7, -4, -10, 0, -2, 2, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+specialType = [0, 0, 1, 1, 0, 0, 1, 7, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 3, 4, 6, 4, 6, 5] # weapons: 0 is nothing, 1 is fire, 2 is fire resistance, 3 is strength, 4 is speed, 5 is ironskin, 6 is random effect, 7 is it explodes
+itemReach = [1, 3, 1, 4, 8, 6, 5, 5, 6, 0, 0, 0, 0, 10, 10, 10, 0, 0, 9, 4, 14, 3, 4, 10, 3]
+itemArea = [0, 0, 1, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # melee: how many tiles the attack extends perpindicular to the attack direction, ranged: same thing but every direction
 canEquipItem = [True, True, True, True, True, True, True, True, True, False, False, False, False, True, True, True, False, False, False, False, False, False, False, False, False]
 isConsumable = [False, False, False, False, False, False, False, True, True, True, True, False, True, False, False, False, False, False, True, True, True, True, True, True, True]
 itemHitChance = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40, 100, 100, 100, 100, 100, 100, 100, 100, 100] # out of 100
@@ -65,7 +65,8 @@ craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potio
 # things that can show up in a dungeon
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron"]
+# holes are destroyed terrain
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron","Hole"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -465,6 +466,9 @@ def attack(msg):
                     recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
                 if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
                     spawnFlame(hitX + xMod, hitY + yMod)
+                if (specialType[findItemIndex(heldWeapon)] == 7):
+                    removeFeature(hitX + xMod, hitY + yMod)
+                    spawnHole(hitX + xMod, hitY + yMod)
     else:
         # ranged logic
         for i in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
@@ -475,6 +479,9 @@ def attack(msg):
                     recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + j, hitY + i, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
                 if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
                     spawnFlame(hitX + j, hitY + i)
+                if (specialType[findItemIndex(heldWeapon)] == 7):
+                    removeFeature(hitX + j, hitY + i)
+                    spawnHole(hitX + j, hitY + i)
 
     if (isConsumable[findItemIndex(heldWeapon)]):
         inventory.pop(findItemIndexInInventory(heldWeapon))
@@ -587,6 +594,9 @@ def getElementInList(x, y, xList, yList):
 
 # checking all rooms and their dimensions to figure out if there's a wall at a given point (x, y)
 def isWall(x, y):
+    # any feature means its not a wall
+    # doors, for example
+    # gotta walk through those
     if (isElementInList(x, y, featureX, featureY)):
         return False
     
@@ -779,6 +789,12 @@ def spawnFlame(x, y):
     featureY.append(y)
     # 3 turns until the flame dissapears
     featureTimer.append(3)
+def spawnHole(x, y):
+    featureType.append("Hole")
+    featureX.append(x)
+    featureY.append(y)
+    # destroyed terrain is permanent
+    featureTimer.append(-1)
 def spawnChest(x, y):
     featureType.append("Chest")
     featureX.append(x)
@@ -820,13 +836,21 @@ def getFeatureType(x, y):
         return featureType[getElementInList(x, y, featureX, featureY)]
     else:
         return "None"
-    
+
+# destroys a feature at the given x and y coords
 def removeFeature(x, y):
-    featureIndex = getElementInList(x, y, featureX, featureY)
-    featureX.pop(featureIndex)
-    featureY.pop(featureIndex)
-    featureType.pop(featureIndex)
-    featureTimer.pop(featureIndex)
+    if (isElementInList(x, y, featureX, featureY)):
+        featureIndex = getElementInList(x, y, featureX, featureY)
+
+        # cannot destroy exits
+        # if this wasn't here, you could bomb an exit and softlock yourself
+        if (featureType[featureIndex] == "Exit" or featureType[featureIndex] == "Fake Exit"):
+            return
+
+        featureX.pop(featureIndex)
+        featureY.pop(featureIndex)
+        featureType.pop(featureIndex)
+        featureTimer.pop(featureIndex)
 
 # ====================================
 # INVENTORY:
@@ -1126,6 +1150,8 @@ def drawScreen():
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Flame" and isInsideDungeon(j, i)):
                 currentLine += str(Fore.MAGENTA) + "!" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Hole"):
+                currentLine += str(Style.DIM) + "." + str(Style.RESET_ALL)
             else:
                 if (isInsideDungeon(j, i)):
                         currentLine += str(Style.DIM) + "." + str(Style.RESET_ALL)
