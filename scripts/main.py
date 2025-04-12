@@ -24,8 +24,8 @@ from colorama import Style
 # game config ============
 
 versionString = "v0.1"
-debugMode = True
-skipIntro = True # skip the lore text
+debugMode = False
+skipIntro = False # skip the lore text
 
 # player stuff ------
 startingInventory = ["Health Potion", "Sword","Swiftness Potion","Ironskin Potion","Strength Potion","Bomb"]
@@ -647,7 +647,7 @@ def clearGlobalLists():
     eventMessages = []
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
-def generateDungeon():
+def generateDungeon(type):
     clearGlobalLists()
 
     currentX = screenWidth/2
@@ -691,6 +691,14 @@ def generateDungeon():
         roomCenterX.append(currentX)
         roomCenterY.append(currentY)
 
+        if (type == 1):
+            # berry cave stuff
+            for i in range(int(currentX - width + 1), int(currentX + width - 1)):
+                for j in range(int(currentY - height + 1), int(currentY + height - 1)):
+                    if (getFeatureType(i, j) == "None"):
+                        if (random.randint(0, 10) > 6):
+                            spawnBerryBush(i, j)
+
         # spawning chests
         if (random.randint(0, 10) > 3 and i > 0):
             spawnChest(currentX, currentY)
@@ -717,11 +725,34 @@ def spawnExit(x, y):
     if (getFeatureType(x, y) != "None"):
         removeFeature(x, y)
 
+    # 3 things that an exit can be: normal, plants, rat cave
+    possibleTypes = 3
+    exitType = random.randint(0, 2)
+
+    if (floorNumber == finalFloorIndex -1):
+        # special type for the floor before the boss
+        exitType = 3
+    elif (floorNumber == 0):
+        exitType = 0
+
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
     featureY.append(y)
-    featureType.append("Exit")
+    featureType.append("Exit: " + str(exitType))
     featureTimer.append(-1)
+
+    # only spawn notes sometimes, to keep users on their toes
+    if (random.randint(0, 10) > 0):
+        # spawn notes hinting at what the exit does
+        if (exitType == 1):
+            # berry cave
+            spawnNote(x+1, y, "This passage looks overgrown. Beware any who follow me.")
+        elif (exitType == 2):
+            # rat cave
+            spawnNote(x+1, y, "Stop, and listen. Do you hear rats? I hear rats.")
+        elif (exitType == 3):
+            # rat cave
+            spawnNote(x+1, y, "I hear someone speaking down there. Is this the end?")
 
 def spawnEnemyFromCurrentTable(x, y):
     currentTable = 0
@@ -781,10 +812,7 @@ def generateStartingFloor():
     clearGlobalLists()
 
     # since the exit is a feature, we just append its location to all the feature lists
-    featureX.append(screenWidth/2)
-    featureY.append(screenHeight/2)
-    featureType.append("Exit")
-    featureTimer.append(-1)
+    spawnExit(screenWidth/2, screenHeight/2)
 
     # a horse and a training dummy spawn at the starting level
     # the dummy allows you to test weapon damage
@@ -853,6 +881,18 @@ def isNote(x, y):
         if (substring(getFeatureType(x, y), 0, 4) == "Note"):
             return True
     return False
+
+def isExit(x, y):
+    if (len(getFeatureType(x, y)) > 4):
+        if (substring(getFeatureType(x, y), 0, 4) == "Exit"):
+            return True
+    return False
+
+def getFeatureData(x, y):
+    rawName = getFeatureType(x, y)
+    colonIndex = rawName.find(":")
+
+    return substring(rawName, colonIndex + 1, len(rawName) - colonIndex - 1)
 
 def isNextToFeature(x, y, type):
     for i in range(0, len(featureType)):
@@ -1193,7 +1233,7 @@ def drawScreen():
                 currentLine += "#"
             elif (getFeatureType(j, i) == "Door"):
                 currentLine += str(Fore.YELLOW) + "◘" + str(Style.RESET_ALL)
-            elif (getFeatureType(j, i) == "Exit"):
+            elif (isExit(j, i)):
                 currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Berry Bush"):
                 # for now, these have the same character as the normal exit
@@ -1551,16 +1591,24 @@ def startNewGame():
     generateStartingFloor()
 
 # called when the player steps over an exit
-def nextFloor():
+def nextFloor(exitType):
+    # since its an index, make it an int
+    exitType = int(exitType)
+    
     global floorNumber
     floorNumber = floorNumber + 1
 
     # if playing on normal mode, the final floor needs to spawn
+    # this happens regardless of what kind of exit it is
     if (floorNumber == finalFloorIndex and gameMode == 0):
         generateFinalDungeon()
     else:
-        # for normal floors, just generate a random dungeon
-        generateDungeon()
+        if (exitType == 3):
+            # rat cave
+            generateRatDungeon()
+        else:
+            # for normal floors, just generate a dungeon based on the type
+            generateDungeon(exitType)
 
 # called when the player dies
 def gameOver():
@@ -1653,8 +1701,8 @@ def runGameLogic():
         damagePlayer(1, "Fire")
 
     # at the very very end of the turn, do logic relating to features
-    if (getFeatureType(playerX, playerY) == "Exit"):
-        nextFloor()
+    if (isExit(playerX, playerY)):
+        nextFloor(getFeatureData(playerX, playerY))
         roomIntro()
     elif (getFeatureType(playerX, playerY) == "Chest"):
         addLoot()
