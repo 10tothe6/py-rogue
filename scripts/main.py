@@ -28,7 +28,7 @@ debugMode = False
 skipIntro = False # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Swiftness Potion","Ironskin Potion","Strength Potion","Bomb"]
+startingInventory = ["Health Potion", "Sword","Spear"]
 defaultHealth = 20
 # --------
 
@@ -86,7 +86,7 @@ enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R"]
 enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat"]
 enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1]
 enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6]
-enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6, 80, 40]
+enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 80, 35]
 enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire)
 enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0] # doesn't affect anything right now
 # ------------------------
@@ -337,6 +337,7 @@ def moveEnemy(index):
     elif (dir == 3):
         yChange = 1
 
+    # necromancer boss stuff
     if (enemyAbility[enemyType[index]] == 5):
         bossCounter += 1
 
@@ -348,6 +349,18 @@ def moveEnemy(index):
         elif(bossCounter == 6):
             for i in range(1, 8):
                 spawnFlame(enemyX[index] + xChange * i, enemyY[index] + yChange * i)
+            return
+        elif(bossCounter % 2 == 0):
+            return
+        
+    # rat boss stuff
+    if (enemyAbility[enemyType[index]] == 3):
+        bossCounter += 1
+
+        if (bossCounter == 7 and not isWall(enemyX[index] - xChange, enemyY[index] - yChange) and getEnemyCharacter(enemyX[index] - xChange, enemyY[index] - yChange) == "no enemy"):
+            # spawn rat enemy
+            spawnEnemy(enemyX[index] - xChange, enemyY[index] - yChange, "Rat")
+            bossCounter = 0
             return
         elif(bossCounter % 2 == 0):
             return
@@ -625,6 +638,8 @@ def clearGlobalLists():
     global enemyHealth
 
     global eventMessages
+
+    global bossCounter
     # --------------
 
     # reset every list involved in the world
@@ -645,6 +660,8 @@ def clearGlobalLists():
     enemyHealth = []
 
     eventMessages = []
+
+    bossCounter = 0 
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon(type):
@@ -696,7 +713,7 @@ def generateDungeon(type):
             for i in range(int(currentX - width + 1), int(currentX + width - 1)):
                 for j in range(int(currentY - height + 1), int(currentY + height - 1)):
                     if (getFeatureType(i, j) == "None"):
-                        if (random.randint(0, 10) > 6):
+                        if (random.randint(0, 10) > 8):
                             spawnBerryBush(i, j)
 
         # spawning chests
@@ -727,7 +744,11 @@ def spawnExit(x, y):
 
     # 3 things that an exit can be: normal, plants, rat cave
     possibleTypes = 3
-    exitType = random.randint(0, 2)
+    exitType = random.randint(0, 3)
+
+    # offseting the index, blah blah
+    exitType -= 1
+    exitType = max(exitType, 0)
 
     if (floorNumber == finalFloorIndex -1):
         # special type for the floor before the boss
@@ -742,7 +763,7 @@ def spawnExit(x, y):
     featureTimer.append(-1)
 
     # only spawn notes sometimes, to keep users on their toes
-    if (random.randint(0, 10) > 0):
+    if (random.randint(0, 10) > 5):
         # spawn notes hinting at what the exit does
         if (exitType == 1):
             # berry cave
@@ -800,8 +821,8 @@ def generateRatDungeon():
     roomWidth.append(12)
     roomHeight.append(4)
 
-    # spawn the final boss
-    spawnEnemy(roomCenterX[0], roomCenterY[0], 7)
+    # spawn the rat boss
+    spawnEnemy(roomCenterX[0], roomCenterY[0], 8)
 
     # player is on the left edge of the room
     movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
@@ -923,6 +944,16 @@ def removeFeature(x, y):
         featureY.pop(featureIndex)
         featureType.pop(featureIndex)
         featureTimer.pop(featureIndex)
+
+def findExitIndex():
+    counter = 0
+    for i in featureType:
+        if (len(i) > 4):
+            if (substring(i, 0, 4) == "Exit"):
+                return counter
+        counter += 1
+    
+    return -1
 
 # ====================================
 # INVENTORY:
@@ -1603,7 +1634,7 @@ def nextFloor(exitType):
     if (floorNumber == finalFloorIndex and gameMode == 0):
         generateFinalDungeon()
     else:
-        if (exitType == 3):
+        if (exitType == 2):
             # rat cave
             generateRatDungeon()
         else:
@@ -1716,6 +1747,11 @@ def runGameLogic():
             fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True, "cyan")
             removeFeature(playerX, playerY)
             input("")
+
+    if (len(enemyType) == 0 and findExitIndex() == -1):
+        # some dungeons only spawn the exit after killing all enemies
+        spawnExit(roomCenterX[0], roomCenterY[0])
+        recordEvent("After dealing with the rats, you see a small opening in the floor.")
 
     drawScreen()
 
