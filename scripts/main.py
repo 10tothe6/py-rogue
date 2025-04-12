@@ -28,7 +28,7 @@ debugMode = True
 skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear","Strange Brew","Strange Brew","Strange Brew"]
+startingInventory = ["Health Potion", "Sword","Spear"]
 defaultHealth = 20
 viewRange = 3
 # --------
@@ -39,7 +39,7 @@ screenHeight = 20 # needs to be even numbers!
 # ---------------------------------
 
 # dungeon stuff ---------------------------------
-dungeonRoomCount = 20
+maxDungeonRoomCount = 20
 finalFloorIndex = 10
 # ---------------------------------
 
@@ -675,6 +675,8 @@ def generateDungeon(type):
 
     prevWidth = 0
     prevHeight = 0
+
+    dungeonRoomCount = random.randint(round(maxDungeonRoomCount / 5), maxDungeonRoomCount)
 
     for i in range(0, dungeonRoomCount):
         # how far the room extends in every direction
@@ -1335,8 +1337,9 @@ def drawScreen():
                 else:
                     currentLine += str(Style.DIM) + "#" + str(Style.RESET_ALL)
 
-        if (i < len(tooltips) and areTipsActive):
-            currentLine += "  " + tooltips[i]
+        if (i - (playerY - screenHeight/2) < len(tooltips) and areTipsActive):
+            
+            currentLine += "  " + tooltips[int(i - (playerY - screenHeight/2))]
         
         print(currentLine)
         currentLine = ""
