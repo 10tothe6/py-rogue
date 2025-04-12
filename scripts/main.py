@@ -66,7 +66,7 @@ craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potio
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 # holes are destroyed terrain
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Fake Exit", "Cauldron","Hole"]
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -82,13 +82,13 @@ statusEffectTimers = [0, 0, 0, 0]
 # e - explosive rat (suicide enemy)
 # R - rat king (secret boss)
 
-enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N"]
-enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer"]
-enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1]
-enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8]
-enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6, 80]
-enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire)
-enemyRange = [0, 0, 0, 0, 0, 0, 0, 0] # WIP
+enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R"]
+enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat"]
+enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1]
+enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6]
+enemyMaxHealth = [999, 15, 10, 8, 5, 5, 6, 80, 40]
+enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire)
+enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0] # doesn't affect anything right now
 # ------------------------
 
 # enemy spawning data ------------------------
@@ -704,16 +704,24 @@ def generateDungeon():
         prevWidth = width
         prevHeight = height
 
-    # since the exit is a feature, we just append its location to all the feature lists
-    if (getFeatureType(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1]) != "None"):
-        removeFeature(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
+    spawnExit(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
 
-    featureX.append(roomCenterX[len(roomCenterX)-1])
-    featureY.append(roomCenterY[len(roomCenterY)-1])
-    featureType.append("Exit")
-    featureTimer.append(-1)
+    if (floorNumber == 6 and random.randint(1, 10) > 6):
+        # spawn a second exit
+        spawnExit(roomCenterX[len(roomCenterX)-2], roomCenterY[len(roomCenterY)-2])
 
     movePlayer(roomCenterX[0], roomCenterY[0])
+
+def spawnExit(x, y):
+    # remove any features that might be in the way already (chests, namely)
+    if (getFeatureType(x, y) != "None"):
+        removeFeature(x, y)
+
+    # since the exit is a feature, we just append its location to all the feature lists
+    featureX.append(x)
+    featureY.append(y)
+    featureType.append("Exit")
+    featureTimer.append(-1)
 
 def spawnEnemyFromCurrentTable(x, y):
     currentTable = 0
@@ -752,6 +760,23 @@ def generateFinalDungeon():
 
     # no need to do anything with the exit, resetting the feature lists deletes it
 
+# the final floor is hardcoded
+def generateRatDungeon():
+    clearGlobalLists()
+
+    roomCenterX.append(screenWidth/2)
+    roomCenterY.append(screenHeight/2)
+    roomWidth.append(12)
+    roomHeight.append(4)
+
+    # spawn the final boss
+    spawnEnemy(roomCenterX[0], roomCenterY[0], 7)
+
+    # player is on the left edge of the room
+    movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
+
+    # no need to do anything with the exit, resetting the feature lists deletes it
+
 def generateStartingFloor():
     clearGlobalLists()
 
@@ -769,6 +794,7 @@ def generateStartingFloor():
     spawnCauldron(screenWidth/2 - 2, screenHeight/2 - 2)
 
     spawnNote(screenWidth/2 - 1, screenHeight/2 - 1, "Many descend, few return.")
+    spawnBerryBush(screenWidth/2 - 8, screenHeight/2 - 1)
 
     movePlayer(screenWidth/2 - 4, screenHeight/2)
 
@@ -791,6 +817,12 @@ def spawnFlame(x, y):
     featureTimer.append(3)
 def spawnHole(x, y):
     featureType.append("Hole")
+    featureX.append(x)
+    featureY.append(y)
+    # destroyed terrain is permanent
+    featureTimer.append(-1)
+def spawnBerryBush(x, y):
+    featureType.append("Berry Bush")
     featureX.append(x)
     featureY.append(y)
     # destroyed terrain is permanent
@@ -844,7 +876,7 @@ def removeFeature(x, y):
 
         # cannot destroy exits
         # if this wasn't here, you could bomb an exit and softlock yourself
-        if (featureType[featureIndex] == "Exit" or featureType[featureIndex] == "Fake Exit"):
+        if (featureType[featureIndex] == "Exit"):
             return
 
         featureX.pop(featureIndex)
@@ -903,6 +935,9 @@ def addItemFormatting(itemName):
     if (specialType[itemIndex] == 1):
         # fire-spawning weapons become magenta
         return str(Fore.MAGENTA) + itemName + str(Style.RESET_ALL)
+    elif (itemInList(itemName, ingredients)):
+        # anything else (really just potion ingredients) is green
+        return str(Fore.GREEN) + itemName + str(Style.RESET_ALL)
     elif (specialType[itemIndex] > 1):
         # all potions (except healing ones) become blue
         return str(Fore.BLUE) + itemName + str(Style.RESET_ALL)
@@ -913,10 +948,10 @@ def addItemFormatting(itemName):
         # weapons are yellow
         return str(Fore.YELLOW) + itemName + str(Style.RESET_ALL)
     else:
-        # anything else (really just potion ingredients) is green
-        return str(Fore.GREEN) + itemName + str(Style.RESET_ALL)
+        # no items should really be here, it's just in case i forgot
+        return str(Fore.WHITE) + itemName + str(Style.RESET_ALL)
     
-    # not using white for items, for now, because it's harder to read
+    # trying to not use white for items, for now, because it's harder to read
 
 # called when the player opens a chest, adds the loot from the chest to the inventory
 def addLoot():
@@ -1017,8 +1052,25 @@ def equipItem(oldIndex):
         return
     # random effect
     elif (specialType[findItemIndex(inventory[oldIndex])] == 6):
-        recordEvent("Drank " + inventory[oldIndex] + ".")
-        statusEffectTimers[random.randint(0, len(statusEffectTimers)-1)] = itemReach[findItemIndex(inventory[oldIndex])]
+        eventString = "Ate " + inventory[oldIndex] + "."
+
+        effectId = random.randint(0, len(statusEffectTimers)-1)
+        statusEffectTimers[effectId] = itemReach[findItemIndex(inventory[oldIndex])]
+
+        if (effectId == 0):
+            # fire resistance
+            eventString += " Your skin tingles."
+        elif (effectId == 1):
+            # strength
+            eventString += " You feel much stronger."
+        elif (effectId == 2):
+            # ironskin
+            eventString += " You feel tough."
+        elif (effectId == 3):
+            # speed
+            eventString += " You feel fast."
+
+        recordEvent(eventString)
 
         if (isConsumable[findItemIndex(inventory[oldIndex])]):
             inventory.pop(oldIndex)
@@ -1143,9 +1195,9 @@ def drawScreen():
                 currentLine += str(Fore.YELLOW) + "◘" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Exit"):
                 currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
-            elif (getFeatureType(j, i) == "Fake Exit"):
+            elif (getFeatureType(j, i) == "Berry Bush"):
                 # for now, these have the same character as the normal exit
-                currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
+                currentLine += str(Fore.GREEN) + "@" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Chest"):
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Flame" and isInsideDungeon(j, i)):
@@ -1606,6 +1658,10 @@ def runGameLogic():
         roomIntro()
     elif (getFeatureType(playerX, playerY) == "Chest"):
         addLoot()
+        removeFeature(playerX, playerY)
+    elif (getFeatureType(playerX, playerY) == "Berry Bush"):
+        addItemToInventory(21)
+        recordEvent("You pick some berries off of the bush. They look... weird.")
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
