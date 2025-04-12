@@ -23,7 +23,7 @@ from colorama import Style
 
 # game config ============
 
-versionString = "v0.1"
+versionString = "v0.2"
 debugMode = False
 skipIntro = False # skip the lore text
 
@@ -66,7 +66,7 @@ craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potio
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 # holes are destroyed terrain
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole"]
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -805,7 +805,7 @@ def generateFinalDungeon():
     roomHeight.append(4)
 
     # spawn the final boss
-    spawnEnemy(roomCenterX[0], roomCenterY[0], 7)
+    spawnEnemy(roomCenterX[0], roomCenterY[0], "Necromancer")
 
     # player is on the left edge of the room
     movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
@@ -822,7 +822,7 @@ def generateRatDungeon():
     roomHeight.append(4)
 
     # spawn the rat boss
-    spawnEnemy(roomCenterX[0], roomCenterY[0], 8)
+    spawnEnemy(roomCenterX[0], roomCenterY[0], "Giant Rat")
 
     # player is on the left edge of the room
     movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
@@ -874,7 +874,11 @@ def spawnBerryBush(x, y):
     featureType.append("Berry Bush")
     featureX.append(x)
     featureY.append(y)
-    # destroyed terrain is permanent
+    featureTimer.append(-1)
+def spawnCrystal(x, y):
+    featureType.append("Crystal")
+    featureX.append(x)
+    featureY.append(y)
     featureTimer.append(-1)
 def spawnChest(x, y):
     featureType.append("Chest")
@@ -1007,11 +1011,11 @@ def addItemFormatting(itemName):
         # fire-spawning weapons become magenta
         return str(Fore.MAGENTA) + itemName + str(Style.RESET_ALL)
     elif (itemInList(itemName, ingredients)):
-        # anything else (really just potion ingredients) is green
+        # potion ingredients) are green
         return str(Fore.GREEN) + itemName + str(Style.RESET_ALL)
     elif (specialType[itemIndex] > 1):
-        # all potions (except healing ones) become blue
-        return str(Fore.BLUE) + itemName + str(Style.RESET_ALL)
+        # all potions (except healing ones) become cyan
+        return str(Fore.CYAN) + itemName + str(Style.RESET_ALL)
     elif (itemDamage[itemIndex] < 0):
         # healing items become red
         return str(Fore.RED) + itemName + str(Style.RESET_ALL)
@@ -1265,7 +1269,7 @@ def drawScreen():
             elif (getFeatureType(j, i) == "Door"):
                 currentLine += str(Fore.YELLOW) + "◘" + str(Style.RESET_ALL)
             elif (isExit(j, i)):
-                currentLine += str(Fore.BLUE) + "↓" + str(Style.RESET_ALL)
+                currentLine += str(Fore.CYAN) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Berry Bush"):
                 # for now, these have the same character as the normal exit
                 currentLine += str(Fore.GREEN) + "@" + str(Style.RESET_ALL)
@@ -1387,7 +1391,7 @@ def drawUpperUI():
         lineString += "-"
     print(lineString)
 
-    print("Health: " + str(getHealthUIColor()) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.BLUE) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + str(addItemFormatting(getEquippedWeapon())) + " (dmg: " + str(addDamageFormatting(itemDamage[getIndexInList(getEquippedWeapon(), itemTypes)])) + ")")
+    print("Health: " + str(getHealthUIColor()) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.CYAN) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + str(addItemFormatting(getEquippedWeapon())) + " (dmg: " + str(addDamageFormatting(itemDamage[getIndexInList(getEquippedWeapon(), itemTypes)])) + ")")
 
     drawDivider()
     # ---------------------------
