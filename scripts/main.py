@@ -30,6 +30,7 @@ skipIntro = True # skip the lore text
 # player stuff ------
 startingInventory = ["Health Potion", "Sword","Spear","Strange Brew","Strange Brew","Strange Brew"]
 defaultHealth = 20
+viewRange = 3
 # --------
 
 # general stuff ---------
@@ -38,7 +39,7 @@ screenHeight = 20 # needs to be even numbers!
 # ---------------------------------
 
 # dungeon stuff ---------------------------------
-dungeonRoomCount = 10
+dungeonRoomCount = 20
 finalFloorIndex = 10
 # ---------------------------------
 
@@ -164,6 +165,7 @@ tooltips = ["w -- move up",
 # RIGHT NOW THIS FEATURE IS TURNED OFF
 isBonusTurn = False
 areTipsActive = True
+isDungeonDark = False
 
 # ------------------------------------------------------
 # ======================================================
@@ -579,9 +581,6 @@ def isInsideDungeon(x, y):
 
 # checking if a room that extends w on the x and h on the y axis can be placed at location (x, y)
 def isValidRoomLocation(w, h, x, y):
-    if (x - w <= 0 or x + w >= screenWidth or y - h <= 0 or y + h >= screenHeight):
-        return False
-
     # loop through all the rooms and see if the new room intersects or not
     for i in range(0, len(roomCenterX)):
         if (boxIntersection(x, y, w, h, roomCenterX[i], roomCenterY[i], roomWidth[i], roomHeight[i])):
@@ -640,6 +639,7 @@ def clearGlobalLists():
     global eventMessages
 
     global bossCounter
+    global isDungeonDark
     # --------------
 
     # reset every list involved in the world
@@ -662,10 +662,13 @@ def clearGlobalLists():
     eventMessages = []
 
     bossCounter = 0 
+    isDungeonDark = False
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon(type):
     clearGlobalLists()
+
+    global isDungeonDark
 
     currentX = screenWidth/2
     currentY = screenHeight/2
@@ -723,6 +726,11 @@ def generateDungeon(type):
                         if (random.randint(0, 10) > 9):
                             spawnCrystal(i, j)
 
+        # darkness isn't actually a type, it just happens randomly
+        if (random.randint(0, 10) < 1):
+            # the variable is already set to false in clearGlobalLists(), so we good
+            isDungeonDark = True
+
         # spawning chests
         if (random.randint(0, 10) > 3 and i > 0):
             spawnChest(currentX, currentY)
@@ -743,6 +751,13 @@ def generateDungeon(type):
         spawnExit(roomCenterX[len(roomCenterX)-2], roomCenterY[len(roomCenterY)-2])
 
     movePlayer(roomCenterX[0], roomCenterY[0])
+
+def isLit(x, y):
+    for i in range(0, len(featureType)):
+        if (featureType[i] == "Crystal" and abs(featureX[i] - x) <= 2 and abs(featureY[i] - y) <= 2):
+            return True
+    
+    return False
 
 def spawnExit(x, y):
     # remove any features that might be in the way already (chests, namely)
@@ -1275,6 +1290,8 @@ def indent():
         print("")
 
 def drawScreen():
+    global viewRange
+
     # spacing, for neatness
     indent()
 
@@ -1286,6 +1303,9 @@ def drawScreen():
         for j in range(int(playerX - round(screenWidth/2)), int(playerX + round(screenWidth/2))):
             if (playerX == j and playerY == i):
                 currentLine += str(Fore.CYAN) + "&" + str(Style.RESET_ALL)
+            elif (isDungeonDark and (abs(j - playerX) > viewRange or abs(i - playerY) > viewRange) and not isLit(j, i)):
+                # darkness
+                currentLine += " "
             elif (getEnemyCharacter(j, i) != "no enemy"):
                 currentLine += str(Fore.RED) + getEnemyCharacter(j, i) + str(Style.RESET_ALL)
             elif (isNote(j, i)):
