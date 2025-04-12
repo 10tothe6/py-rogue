@@ -28,7 +28,7 @@ debugMode = True
 skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear"]
+startingInventory = ["Health Potion", "Sword","Spear","Hellbow"]
 defaultHealth = 20
 viewRange = 3
 # --------
@@ -80,16 +80,14 @@ statusEffectTimers = [0, 0, 0, 0]
 # l - longbowman (flaming arrows)
 # b - bomb thrower
 # w - witch
-# e - explosive rat (suicide enemy)
-# R - rat king (secret boss)
 
-enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R"]
-enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat"]
-enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1]
-enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6]
-enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 80, 35]
-enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire)
-enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0] # doesn't affect anything right now
+enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R","e"]
+enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat","Bomb Rat"]
+enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6, 0]
+enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 80, 35, 4]
+enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3, 6] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire), 6: explodes
+enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # doesn't affect anything right now
 # ------------------------
 
 # enemy spawning data ------------------------
