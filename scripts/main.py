@@ -24,11 +24,11 @@ from colorama import Style
 # game config ============
 
 versionString = "v0.2"
-debugMode = False
-skipIntro = False # skip the lore text
+debugMode = True
+skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear"]
+startingInventory = ["Health Potion", "Sword","Spear","Strange Brew","Strange Brew","Strange Brew"]
 defaultHealth = 20
 # --------
 
@@ -713,8 +713,15 @@ def generateDungeon(type):
             for i in range(int(currentX - width + 1), int(currentX + width - 1)):
                 for j in range(int(currentY - height + 1), int(currentY + height - 1)):
                     if (getFeatureType(i, j) == "None"):
-                        if (random.randint(0, 10) > 8):
+                        if (random.randint(0, 10) > 9):
                             spawnBerryBush(i, j)
+        elif (type == 4):
+            # crystal cave stuff
+            for i in range(int(currentX - width + 1), int(currentX + width - 1)):
+                for j in range(int(currentY - height + 1), int(currentY + height - 1)):
+                    if (getFeatureType(i, j) == "None"):
+                        if (random.randint(0, 10) > 9):
+                            spawnCrystal(i, j)
 
         # spawning chests
         if (random.randint(0, 10) > 3 and i > 0):
@@ -731,7 +738,7 @@ def generateDungeon(type):
 
     spawnExit(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
 
-    if (floorNumber == 6 and random.randint(1, 10) > 6):
+    if (random.randint(1, 10) > 5):
         # spawn a second exit
         spawnExit(roomCenterX[len(roomCenterX)-2], roomCenterY[len(roomCenterY)-2])
 
@@ -742,18 +749,23 @@ def spawnExit(x, y):
     if (getFeatureType(x, y) != "None"):
         removeFeature(x, y)
 
-    # 3 things that an exit can be: normal, plants, rat cave
-    possibleTypes = 3
-    exitType = random.randint(0, 3)
+    # 0 is normal, 1 is berry cave, 2 is rat cave, 3 is final boss, 4 is crystal cave
+    possibleTypes = 5
+    exitType = random.randint(0, possibleTypes-1)
 
     # offseting the index, blah blah
     exitType -= 1
     exitType = max(exitType, 0)
 
+    # make the exit always 3 for the final boss, never 3 otherwise
     if (floorNumber == finalFloorIndex -1):
         # special type for the floor before the boss
         exitType = 3
-    elif (floorNumber == 0):
+    elif (exitType == 3):
+        exitType = 0
+    
+    # exit always 0 for the first floor
+    if (floorNumber == 0):
         exitType = 0
 
     # since the exit is a feature, we just append its location to all the feature lists
@@ -763,7 +775,8 @@ def spawnExit(x, y):
     featureTimer.append(-1)
 
     # only spawn notes sometimes, to keep users on their toes
-    if (random.randint(0, 10) > 5):
+    # but most of the time, else they end up in a rat cave randomly
+    if (random.randint(0, 10) > 3):
         # spawn notes hinting at what the exit does
         if (exitType == 1):
             # berry cave
@@ -772,8 +785,11 @@ def spawnExit(x, y):
             # rat cave
             spawnNote(x+1, y, "Stop, and listen. Do you hear rats? I hear rats.")
         elif (exitType == 3):
-            # rat cave
+            # boss cave
             spawnNote(x+1, y, "I hear someone speaking down there. Is this the end?")
+        elif (exitType == 4):
+            # crystal cave
+            spawnNote(x+1, y, "This passage... it's... glowing...")
 
 def spawnEnemyFromCurrentTable(x, y):
     currentTable = 0
@@ -1129,8 +1145,14 @@ def equipItem(oldIndex):
     elif (specialType[findItemIndex(inventory[oldIndex])] == 6):
         eventString = "Ate " + inventory[oldIndex] + "."
 
-        effectId = random.randint(0, len(statusEffectTimers)-1)
-        statusEffectTimers[effectId] = itemReach[findItemIndex(inventory[oldIndex])]
+        effectId = random.randint(0, len(statusEffectTimers)+1)
+        
+        if (effectId == len(statusEffectTimers) + 1):
+            damagePlayer(-random.randint(2, 10), "Potion")
+        elif (effectId == len(statusEffectTimers)):
+            damagePlayer(random.randint(2, 10), "Potion")
+        else:
+            statusEffectTimers[effectId] = itemReach[findItemIndex(inventory[oldIndex])]
 
         if (effectId == 0):
             # fire resistance
@@ -1144,6 +1166,12 @@ def equipItem(oldIndex):
         elif (effectId == 3):
             # speed
             eventString += " You feel fast."
+        elif (effectId == len(statusEffectTimers)):
+            # speed
+            eventString += " It hurts."
+        elif (effectId == len(statusEffectTimers) + 1):
+            # speed
+            eventString += " You feel... better."
 
         recordEvent(eventString)
 
@@ -1254,8 +1282,8 @@ def drawScreen():
 
     # drawing the world
     currentLine = ""
-    for i in range(screenHeight):
-        for j in range(screenWidth):
+    for i in range(int(playerY - round(screenHeight/2)), int(playerY + round(screenHeight/2))):
+        for j in range(int(playerX - round(screenWidth/2)), int(playerX + round(screenWidth/2))):
             if (playerX == j and playerY == i):
                 currentLine += str(Fore.CYAN) + "&" + str(Style.RESET_ALL)
             elif (getEnemyCharacter(j, i) != "no enemy"):
@@ -1271,8 +1299,10 @@ def drawScreen():
             elif (isExit(j, i)):
                 currentLine += str(Fore.CYAN) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Berry Bush"):
-                # for now, these have the same character as the normal exit
                 currentLine += str(Fore.GREEN) + "@" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Crystal"):
+                currentLine += str(Fore.MAGENTA) + "▲" + str(Style.RESET_ALL)
+                # these do nothing for now
             elif (getFeatureType(j, i) == "Chest"):
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Flame" and isInsideDungeon(j, i)):
@@ -1689,14 +1719,6 @@ def roomIntro():
 def runGameLogic():
     global isBonusTurn
 
-    # check if the game is over (player died, or won) before handling any logic
-    if (playerHealth <=0):
-        gameOver()
-        return
-    if (floorNumber == finalFloorIndex and len(enemyType) == 0):
-        gameWin()
-        return
-
     # get the player to type a command, and perform whatever logic that does
     # this function handles all that
     promptUserForAction()
@@ -1743,8 +1765,11 @@ def runGameLogic():
         addLoot()
         removeFeature(playerX, playerY)
     elif (getFeatureType(playerX, playerY) == "Berry Bush"):
-        addItemToInventory(21)
-        recordEvent("You pick some berries off of the bush. They look... weird.")
+        if (random.randint(0, 10) > 5):
+            addItemToInventory(21)
+            recordEvent("You pick some berries off of the bush. They look... weird.")
+        else:
+            recordEvent("The bush seems to be picked clean of berries.")
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
@@ -1757,8 +1782,16 @@ def runGameLogic():
         spawnExit(roomCenterX[0], roomCenterY[0])
         recordEvent("After dealing with the rats, you see a small opening in the floor.")
 
-    drawScreen()
+    # check if the game is over (player died, or won) before handling any logic
+    if (playerHealth <=0):
+        gameOver()
+        return
+    if (floorNumber == finalFloorIndex and len(enemyType) == 0):
+        gameWin()
+        return
 
+    # if not dead and we haven't won yet, we can keep playing
+    drawScreen()
     runGameLogic()
 
 colorama_init()
