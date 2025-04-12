@@ -4,7 +4,7 @@ Things were never the same after the siege. The crown has been stolen. The kingd
 
 This is a roguelike game written in python, that runs in a windows terminal. It was made as a school assignment.
 
-**Featues:
+### Features:
 - randomly generated dungeons
 - 5 enemies
 - 2 bosses
@@ -12,3 +12,7 @@ This is a roguelike game written in python, that runs in a windows terminal. It 
 - 12 weapons, both melee and ranged
 - destructible terrain
 - potion effects
+
+  ### How to play:
+  Go to the releases page, download the zip file (named something like v0.2.zip) and extract that into any folder.
+  Make sure the .exe file and the _internal folder are in the same directory! Then, just run the .exe file.
