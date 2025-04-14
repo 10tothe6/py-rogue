@@ -7,7 +7,6 @@
 
 # bomb rat
 # attack command shorthand
-# better rat dungeon
 
 import random
 # the library that I use for ANSI escape codes, which allows me to write colored text in the terminal
@@ -23,9 +22,9 @@ from colorama import Style
 
 # game config ============
 
-versionString = "v0.2"
-debugMode = True
-skipIntro = True # skip the lore text
+versionString = "v0.3"
+debugMode = True # toggle debug data like item counts
+skipIntro = True # whether to skip the lore text
 
 # player stuff ------
 startingInventory = ["Health Potion", "Sword","Spear","Bow"]
@@ -84,20 +83,21 @@ statusEffectTimers = [0, 0, 0, 0]
 # b - bomb thrower
 # w - witch
 
-enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R","e"]
+enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R","b"]
 enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat","Bomb Rat"]
 enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
 enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6, 0]
 enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 80, 35, 4]
 enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3, 6] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire), 6: explodes
-enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # doesn't affect anything right now
+enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0, 2] # just affects the radius of bomb rats
 # ------------------------
 
 # enemy spawning data ------------------------
 # basically the dungeon is divided into quarters, each with a different set of enemies
-enemyTable1 = ["Rat", "Fire Rat"]
-enemyTable2 = ["Rat", "Fire Rat", "Swordsman"]
-enemyTable3 = ["Rat", "Fire Rat", "Ghost"]
+# these are like loot tables
+enemyTable1 = ["Rat", "Fire Rat","Bomb Rat"]
+enemyTable2 = ["Rat", "Fire Rat", "Swordsman","Bomb Rat"]
+enemyTable3 = ["Rat", "Fire Rat", "Ghost", "Bomb Rat"]
 enemyTable4 = ["Undead", "Ghost", "Swordsman"]
 #  ------------------------
 
@@ -172,7 +172,7 @@ lastDamageType = "Null"
 
 # what variant of dungeon are we in right now
 currentDungeonType = -1
-# hitting a crystal ends the game
+# hitting a crystal ends the game when in the crystal caves
 hasHitCrystal = False
 
 # ------------------------------------------------------
@@ -400,6 +400,15 @@ def moveEnemy(index):
             return
         elif(bossCounter % 2 == 0):
             return
+        
+    # any enemy that explodes, right now just bomb rats
+    if (enemyAbility[enemyType[index]] == 6):
+        if (abs(playerX-enemyX[index]) <= enemyRange[enemyType[index]] and abs(playerY-enemyY[index]) <= enemyRange[enemyType[index]]):
+            # call the explode function, kill the enemy, and stop the function
+            affectArea(enemyX[index], enemyY[index], enemyRange[enemyType[index]], 7, True, False)
+
+            enemyHealth[index] -= enemyHealth[index]
+            return
 
     # temporary code to allow dummys and horses (not moving enemies) to work
     # basically skip the rest of the function if the move speed is 0
@@ -519,9 +528,9 @@ def attack(msg):
             dir = 0
         elif (xInput > 0):
             dir = 1
-        elif (yInput < 0):
+        elif (yInput > 0):
             dir = 3
-        if (yInput > 0):
+        if (yInput < 0):
             dir = 2
     
     # sometimes a hit can fail, depending on the accuracy of the weapon
@@ -546,7 +555,6 @@ def attack(msg):
                 hitY += 1
 
             for j in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
-
                 xMod = 0
                 yMod = 0
                 if (dir == 0 or dir == 1):
@@ -648,8 +656,9 @@ def isInsideBox(x1, y1, w1, h1, x2, y2):
         return False
     
 # is the point (x2, y2) inside OR ON THE EDGE OF the box defined by the other variables
+# this function is only used for weapon checks
 def isInsideOrOnBox(x1, y1, w1, h1, x2, y2):
-    if (x2 >= x1 - w1 and x2 <= x1 + w1 and y2 >= y1 - h1 and y2 <= y1 + h1):
+    if (x2 >= x1 - w1 - 1 and x2 <= x1 + w1 + 1 and y2 >= y1 - h1 - 1 and y2 <= y1 + h1 + 1):
         return True
     else:
         return False
@@ -833,35 +842,52 @@ def generateDungeon(type):
         # no extra features for the collapsing caves
 
         # darkness isn't actually a type, it just happens randomly
+        # RAT DUNGEONS CAN STILL BE DARK
         if (random.randint(0, 10) < 1):
             # the variable is already set to false in clearGlobalLists(), so we good
             isDungeonDark = True
 
+        # most features do not spawn in rat dungeons, hence the type != 2
+
         # spawning chests
-        if (random.randint(0, 10) > 6 and i > 0):
+        if (random.randint(0, 10) > 6 and i > 0 and type != 2):
             spawnPermanentFeature(currentX, currentY, "Chest")
             if (random.randint(0, 10) > 5):
                 spawnPermanentFeature(currentX, currentY-1, "Cauldron")
 
         # spawning enemies
-        if (random.randint(0, 10) > 5):
+        if (random.randint(0, 10) > 4 and type != 2 and i > 0):
             spawnEnemyFromCurrentTable(currentX, currentY + 1)
+        elif (type == 2 and i > 0):
+            # spawn a rat in every room for rat dungeons
+            spawnEnemy(currentX, currentY + height - 1, "Rat")
 
         # spawning a bomb
+        # BOMBS STILL SPAWN IN RAT DUNGEONS
         if (random.randint(0, 10) > 5):
             spawnPermanentFeature(currentX - width + 1, currentY - height + 1, "TNT")
 
         prevWidth = width
         prevHeight = height
 
-    spawnExit(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
-
-    if (random.randint(1, 10) > 5):
+    # exits do not spawn normally in rat dungeons, if they did you could just skip the boss
+    # instead the exit is spawned when the boss is dead
+    if (type != 2):
+        spawnExit(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
         # spawn a second exit
-        spawnExit(roomCenterX[len(roomCenterX)-2], roomCenterY[len(roomCenterY)-2])
+        if (random.randint(1, 10) > 5):
+            spawnExit(roomCenterX[len(roomCenterX)-2], roomCenterY[len(roomCenterY)-2])
 
+    if (type == 2):
+        # spawn the rat boss at the end of the rat dungeon
+        spawnEnemy(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1]+1, "Giant Rat")   
+
+    # move the player to the middle of the first room
     movePlayer(roomCenterX[0], roomCenterY[0])
 
+# whether a tile is lit up or not
+# used to check what tiles should be dark in dark dungeons
+# crystals are the only things that glow right now
 def isLit(x, y):
     for i in range(0, len(featureType)):
         if (featureType[i] == "Crystal" and abs(featureX[i] - x) <= 2 and abs(featureY[i] - y) <= 2):
@@ -892,9 +918,6 @@ def spawnExit(x, y):
     # exit always 0 for the first floor
     if (floorNumber == 0):
         exitType = 0
-
-    # temp
-    exitType = 1
 
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
@@ -959,26 +982,6 @@ def generateFinalDungeon():
 
     # no need to do anything with the exit, resetting the feature lists deletes it
 
-# the final floor is hardcoded
-def generateRatDungeon():
-    clearGlobalLists()
-
-    global currentDungeonType
-    currentDungeonType = 2
-
-    roomCenterX.append(screenWidth/2)
-    roomCenterY.append(screenHeight/2)
-    roomWidth.append(12)
-    roomHeight.append(4)
-
-    # spawn the rat boss
-    spawnEnemy(roomCenterX[0], roomCenterY[0], "Giant Rat")
-
-    # player is on the left edge of the room
-    movePlayer(roomCenterX[0] - roomWidth[0] + 1, roomCenterY[0])
-
-    # no need to do anything with the exit, resetting the feature lists deletes it
-
 def generateStartingFloor():
     clearGlobalLists()
 
@@ -1007,12 +1010,16 @@ def spawnEnemyFromTable(x, y, tableIndex):
     else:
         spawnEnemy(x, y, enemyTable4[random.randint(0, len(enemyTable4) - 1)])
 
+# spawning any type of permanent feature at a given (x, y) point
+# NOTES and EXITS have their own functions for this!
 def spawnPermanentFeature(x, y, featureName):
     featureType.append(featureName)
     featureX.append(x)
     featureY.append(y)
     # 3 turns until the flame dissapears
     featureTimer.append(-1)
+
+# different functions for these two because they are temporary features
 def spawnFlame(x, y):
     if (currentDungeonType == 5):
         # no flames in wet caves, only smoke
@@ -1029,30 +1036,35 @@ def spawnSmoke(x, y):
     featureY.append(y)
     # 3 turns until the smoke dissapears
     featureTimer.append(3)
+
+# unique function because it takes in a message string
 def spawnNote(x, y, msg):
     featureType.append("Note: " + msg)
     featureX.append(x)
     featureY.append(y)
     featureTimer.append(-1)
 
+# separate functions for these two, not just using getFeatureType(),
+# because these features have more data than just "Note" or "Exit"
 def isNote(x, y):
     if (len(getFeatureType(x, y)) > 4):
         if (substring(getFeatureType(x, y), 0, 4) == "Note"):
             return True
     return False
-
 def isExit(x, y):
     if (len(getFeatureType(x, y)) > 4):
         if (substring(getFeatureType(x, y), 0, 4) == "Exit"):
             return True
     return False
 
+# used for notes and exits, to get the part of the string after the ":"
 def getFeatureData(x, y):
     rawName = getFeatureType(x, y)
     colonIndex = rawName.find(":")
 
     return substring(rawName, colonIndex + 1, len(rawName) - colonIndex - 1)
 
+# whether a given point is next to a feature of a given type
 def isNextToFeature(x, y, type):
     for i in range(0, len(featureType)):
         if (featureType[i] == type):
@@ -1061,7 +1073,8 @@ def isNextToFeature(x, y, type):
     
     return False
 
-
+# return as a string, what kind of feature is located at a given tile
+# since multiple features can in theory be on one tile, this can cause weirdness
 def getFeatureType(x, y):
     if (getElementInList(x, y, featureX, featureY) != -1):
         return featureType[getElementInList(x, y, featureX, featureY)]
@@ -1083,6 +1096,10 @@ def removeFeature(x, y):
         featureType.pop(featureIndex)
         featureTimer.pop(featureIndex)
 
+# find the index (in the featureType array) that the exit appears
+# this is used on boss floors, 
+# to check whether an exit is there and if not spawn one
+# on those floors the exit isn't spawned on generate, it's spawned after killing all enemies
 def findExitIndex():
     counter = 0
     for i in featureType:
@@ -1097,6 +1114,7 @@ def findExitIndex():
 # INVENTORY:
 # ====================================
 
+# handles crafting logic, and writes either a sucess/fail event message
 def tryCraft(userInput):
     userInput = userInput.strip()
 
@@ -1310,6 +1328,8 @@ def equipItem(oldIndex):
 # UTILITY
 # ====================================
 
+# boolean function,
+# whether an item appears in a list
 def itemInList(item, list):
     counter = 0
     for i in list:
@@ -1319,6 +1339,9 @@ def itemInList(item, list):
 
     return False
 
+# this does similar to the above function, 
+# but returns the first index of the item
+# I'm like 75% sure there is a built-in function for this
 def getIndexInList(item, list):
     counter = 0
     for i in list:
@@ -1392,10 +1415,13 @@ def formatNumber(string, charCount):
 # SCREEN
 # ====================================
 
+# prints a bunch of blank lines to the terminal
+# used to separate frames
 def indent():
     for i in range(0, 30):
         print("")
 
+# very important function that prints one frame of screen
 def drawScreen():
     global viewRange
 
@@ -1541,6 +1567,8 @@ def fullscreenMessage(msg, showContinueMessage, showUI, colorName, lowerMsg):
     if (showUI):
         drawLowerUI()
 
+# fire resistance and ironskin change the color of your health, 
+# this function tells the UI what color to use
 def getHealthUIColor():
     if (statusEffectTimers[2] > 0):
         return str(Fore.CYAN)
@@ -1549,6 +1577,8 @@ def getHealthUIColor():
     else:
         return str(Fore.RED)
 
+# strength changes the damage number to red, 
+# this function keeps track of that
 def addDamageFormatting(string):
     if (statusEffectTimers[1] > 0):
         return str(Fore.RED) + str(int(string) * 2) + str(Style.RESET_ALL)
@@ -1635,6 +1665,7 @@ def drawLowerUI():
     drawDivider()
     # ---------------------------
 
+# adds a number of whitespace characters to the inputted string
 def addBlankSpace(inputString, spaceCount):
     for i in range(0, spaceCount):
         inputString += " "
@@ -1653,7 +1684,9 @@ def drawDivider():
 # ====================================
 
 # go through the intro text, should only happen upon booting the game for the first time
+# we always put an input("") call between the message functions so the player has time to read
 def runIntro():
+    # title
     fullscreenMessage("FakeVoxel presents", True, False, "magenta", "")
     input("")
     fullscreenMessage("PYROGUE" + " (" + versionString + ")", True, False, "magenta", "")
@@ -1683,6 +1716,7 @@ def runIntro():
     fullscreenMessage("   My crown.   ", True, False, "cyan", "")
     input("")
 
+    # blank screen to let user know the cutscene is over
     blankScreen()
     input("")
 
@@ -1814,21 +1848,17 @@ def nextFloor(exitType):
     if (floorNumber == finalFloorIndex and gameMode == 0):
         generateFinalDungeon()
     else:
-        if (exitType == 2):
-            # rat cave
-            generateRatDungeon()
-        else:
-            # for normal floors, just generate a dungeon based on the type
-            generateDungeon(exitType)
+        # for normal floors, just generate a dungeon based on the type
+        generateDungeon(exitType)
 
 # don't hit the crystals
 def crystalGameOver():
+    # this ending is triggered by hitting a crystal
+    # just a little cutscene, followed by GAME OVER
     fullscreenMessage("   Your weapon strikes one of the giant crystals, and bounces off.   ", True, True, "red", "")
     input("")
-
     fullscreenMessage("   The crystal starts to vibrate, then shake violently.   ", True, True, "red", "")
     input("")
-
     fullscreenMessage("   All the other crystals join in. Then you hear a cracking noise...   ", True, True, "red", "")
     input("")
 
@@ -1839,6 +1869,8 @@ def crystalGameOver():
 def gameOver():
     deathMessage = "   You died.   "
 
+    # the lastDamageType variable keeps track of the way the player took damage most recently
+    # using this, we can see how the player died and make a funny message
     if (lastDamageType == "Fire"):
         deathMessage = "   That thing on the ground? Yeah, that's fire.   "
     elif (lastDamageType == "Potion"):
@@ -1859,15 +1891,15 @@ def gameOver():
 
 # called once the player is in the final room and there are no enemies
 def gameWin():
-    fullscreenMessage("   The necromancer and his minions fall to the ground, lifeless.   ", True, True, "cyan", "")
+    # little bit of final text to make things more dramatic
+    fullscreenMessage("   The necromancer and his minions fall to the ground, lifeless.   ", True, True, "green", "")
+    input("")
+    fullscreenMessage("   You climb down one last set of stairs, and there lies the king.   ", True, True, "green", "")
+    input("")
+    fullscreenMessage("   On the ground beside him, the crown.   ", True, True, "green", "")
     input("")
 
-    fullscreenMessage("   You climb down one last set of stairs, and there lies the king.   ", True, True, "cyan", "")
-    input("")
-
-    fullscreenMessage("   On the ground beside him, the crown.   ", True, True, "cyan", "")
-    input("")
-
+    # winn message
     fullscreenMessage("   VICTORY   ", False, True, "green", "")
     input("")
 
@@ -1962,9 +1994,9 @@ def runGameLogic():
             removeFeature(playerX, playerY)
             input("")
 
-    if (len(enemyType) == 0 and findExitIndex() == -1):
+    if (findExitIndex() == -1 and not itemInList(8, enemyType) and not itemInList(7, enemyType)):
         # some dungeons only spawn the exit after killing all enemies
-        spawnExit(roomCenterX[0], roomCenterY[0])
+        spawnExit(roomCenterX[len(roomCenterX)-1], roomCenterY[len(roomCenterY)-1])
         recordEvent("After dealing with the rats, you see a small opening in the floor.")
 
     # check if the game is over (player died, or won) before handling any logic
