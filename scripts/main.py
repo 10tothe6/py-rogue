@@ -18,8 +18,8 @@ from colorama import Style
 # game config ============
 
 versionString = "v0.3" # the version number that appears in the title
-debugMode = True # toggle debug data like item counts
-skipIntro = True # whether to skip the lore text
+debugMode = False # toggle debug data like item counts
+skipIntro = False # whether to skip the lore text
 
 # player stuff ------
 startingInventory = ["Health Potion", "Sword"]
@@ -82,7 +82,7 @@ enemyCharacters = ["d", "H", "s", "u", "r", "f", "g", "N", "R","b"]
 enemyNames = ["Dummy", "Horse", "Swordsman", "Undead", "Rat", "Fire Rat", "Ghost", "Necromancer", "Giant Rat","Bomb Rat"]
 enemyMoveSpeed = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
 enemyDamage = [0, 0, 5, 3, 1, 1, 8, 8, 6, 0]
-enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 80, 35, 4]
+enemyMaxHealth = [999, 15, 10, 8, 4, 4, 6, 55, 35, 4]
 enemyAbility = [0, 0, 0, 0, 0, 1, 2, 5, 3, 6] # 1: spawn fire trail, 2: go through walls, 3: summon rats, 4: summon undead, 5: necromancer (summon undead and spawn fire), 6: explodes
 enemyRange = [0, 0, 0, 0, 0, 0, 0, 0, 0, 2] # just affects the radius of bomb rats
 # ------------------------
@@ -150,13 +150,13 @@ tooltips = ["w -- move up",
             "a -- move left", 
             "d -- move right", 
             "",
-            "x num1, num2 -- attack num1 units right and num2 units up", 
+            "x1,2 -- attack 1 units right and 2 units up (works for any number)", 
             "",
-            "e num -- equip item # num from inventory", 
+            "e1 -- equip item 1 from inventory (works with any number)", 
             "",
             "r -- start new game", 
             "",
-            "c num1, num2 -- craft num1 + num2 (requires a cauldron beside you)"]
+            "c1,2 -- craft items 1 + 2 in inventory (requires a cauldron beside you)"]
 
 # every other player turn is a "bonus turn", where no other creatures can do anything
 # RIGHT NOW THIS FEATURE IS TURNED OFF
@@ -954,8 +954,6 @@ def spawnExit(x, y):
     # exit always 0 for the first floor
     if (floorNumber == 0):
         exitType = 0
-
-    exitType = 6
 
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
