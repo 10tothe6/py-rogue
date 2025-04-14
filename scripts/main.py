@@ -3,11 +3,6 @@
 # Finishing Date (this script): April 11th, 2025
 # Description: 
 
-# MAIN TOOD LIST:
-
-# bomb rat
-# attack command shorthand
-
 import random
 # the library that I use for ANSI escape codes, which allows me to write colored text in the terminal
 from colorama import init as colorama_init
@@ -22,12 +17,12 @@ from colorama import Style
 
 # game config ============
 
-versionString = "v0.3"
+versionString = "v0.3" # the version number that appears in the title
 debugMode = True # toggle debug data like item counts
 skipIntro = True # whether to skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear","Bow"]
+startingInventory = ["Health Potion", "Sword"]
 defaultHealth = 20
 viewRange = 3
 # --------
@@ -69,7 +64,7 @@ grassIngredients = ["Windbloom", "Cave Root", "Mushroom"]
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 # holes are destroyed terrain
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal","Puddle","Smoke","TNT","Grass"]
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal","Puddle","Smoke","TNT","Grass","Boulder"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -172,6 +167,8 @@ lastDamageType = "Null"
 
 # what variant of dungeon are we in right now
 currentDungeonType = -1
+# when in the collapsing caves, every 6 or so turns a rock will fall
+collapseTimer = 0
 # hitting a crystal ends the game when in the crystal caves
 hasHitCrystal = False
 
@@ -242,10 +239,43 @@ def refreshEnemyData():
             enemyType.pop(j)
             enemyHealth.pop(j)
 
+    startingLength = len(featureType)
+    for i in range(0, startingLength):
+        j = startingLength - i - 1
+        if (featureType[j] == "Boulder" and featureTimer[j] <= 0):
+            if (featureX[j] == playerX and featureY[j] == playerY):
+                recordEvent("A boulder fell on your head.")
+                damagePlayer(9, "Boulder")
+            if (getElementInList(featureX[j], featureY[j], enemyX, enemyY) != -1):
+                    enemyHealth[getElementInList(featureX[j], featureY[j], enemyX, enemyY)] -= 9
+            
+            spawnSmoke(featureX[j], featureY[j])
+
+            # remove the boulder from all features
+            featureTimer.pop(j)
+            featureType.pop(j)
+            featureX.pop(j)
+            featureY.pop(j)
+
+
 # move every enemy on the screen
 def moveAllEnemies():
+    global collapseTimer
+    
     for i in range(0, len(enemyX)):
         moveEnemy(i)
+    
+    # if in a collapsing cave, spawn a boulder sometimes
+    # boulders are sort of like enemies right?
+    if (collapseTimer == 0 and currentDungeonType == 6):
+        xMod = random.randint(-1, 1)
+        yMod = random.randint(-1, 1)
+
+        spawnBoulder(playerX + xMod, playerY + yMod)
+
+        collapseTimer = 3
+    else:
+        collapseTimer -= 1
 
 # in this game the convention is:
 # -1 = no direction
@@ -356,14 +386,25 @@ def moveEnemy(index):
     xChange = 0
     yChange = 0
 
+    # any enemy that explodes, right now just bomb rats
+    # this is done BEFORE THE NORMAL DAMAGE LOGIC so it's not skipped
+    if (enemyAbility[enemyType[index]] == 6):
+        if (abs(playerX-enemyX[index]) <= enemyRange[enemyType[index]] and abs(playerY-enemyY[index]) <= enemyRange[enemyType[index]]):
+            # call the explode function, kill the enemy, and stop the function
+            affectArea(enemyX[index], enemyY[index], enemyRange[enemyType[index]], 7, True, False)
+
+            enemyHealth[index] -= enemyHealth[index]
+            return
+
     # damaging the player
     # this is done first, so enemies can't move and attack at the same time
     if (isAdjacent(enemyX[index], enemyY[index], playerX, playerY)):
         damagePlayer(enemyDamage[enemyType[index]],enemyNames[enemyType[index]])
         return
 
+    # figure out where the player is relative to the enemy, 
+    # then figure out where the enemy will be moving based on that
     dir = getDirectionToPlayer(enemyX[index], enemyY[index], False)
-
     if (dir == 0):
         xChange = -1
     elif (dir == 1):
@@ -399,15 +440,6 @@ def moveEnemy(index):
             bossCounter = 0
             return
         elif(bossCounter % 2 == 0):
-            return
-        
-    # any enemy that explodes, right now just bomb rats
-    if (enemyAbility[enemyType[index]] == 6):
-        if (abs(playerX-enemyX[index]) <= enemyRange[enemyType[index]] and abs(playerY-enemyY[index]) <= enemyRange[enemyType[index]]):
-            # call the explode function, kill the enemy, and stop the function
-            affectArea(enemyX[index], enemyY[index], enemyRange[enemyType[index]], 7, True, False)
-
-            enemyHealth[index] -= enemyHealth[index]
             return
 
     # temporary code to allow dummys and horses (not moving enemies) to work
@@ -737,6 +769,7 @@ def clearGlobalLists():
 
     global bossCounter
     global isDungeonDark
+    global collapseTimer
     # --------------
 
     # reset every list involved in the world
@@ -760,6 +793,8 @@ def clearGlobalLists():
 
     bossCounter = 0 
     isDungeonDark = False
+    # 3 turns from entering a collapsing cave until the first boulder falls
+    collapseTimer = 3
 
     # generate the dungeon for the first time, and save the coordinates of all rooms
 def generateDungeon(type):
@@ -800,6 +835,7 @@ def generateDungeon(type):
         else: 
             continue
 
+        # placing the door between this room and the last one
         if (i != 0):
             if (roomDir == 0):
                 spawnPermanentFeature(currentX + width, currentY, "Door")
@@ -809,10 +845,10 @@ def generateDungeon(type):
                 spawnPermanentFeature(currentX, currentY + height, "Door")
             elif (roomDir == 3):
                 spawnPermanentFeature(currentX, currentY - height, "Door")
-
+    
+        # add info to the room lists
         roomWidth.append(width)
         roomHeight.append(height)
-
         roomCenterX.append(currentX)
         roomCenterY.append(currentY)
 
@@ -850,9 +886,9 @@ def generateDungeon(type):
         # most features do not spawn in rat dungeons, hence the type != 2
 
         # spawning chests
-        if (random.randint(0, 10) > 6 and i > 0 and type != 2):
+        if (random.randint(0, 10) > 5 and i > 0 and type != 2):
             spawnPermanentFeature(currentX, currentY, "Chest")
-            if (random.randint(0, 10) > 5):
+            if (random.randint(0, 10) > 6):
                 spawnPermanentFeature(currentX, currentY-1, "Cauldron")
 
         # spawning enemies
@@ -918,6 +954,8 @@ def spawnExit(x, y):
     # exit always 0 for the first floor
     if (floorNumber == 0):
         exitType = 0
+
+    exitType = 6
 
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
@@ -1030,12 +1068,20 @@ def spawnFlame(x, y):
     featureY.append(y)
     # 3 turns until the flame dissapears
     featureTimer.append(3)
+
 def spawnSmoke(x, y):
     featureType.append("Smoke")
     featureX.append(x)
     featureY.append(y)
     # 3 turns until the smoke dissapears
     featureTimer.append(3)
+    
+def spawnBoulder(x, y):
+    featureType.append("Boulder")
+    featureX.append(x)
+    featureY.append(y)
+    # 1 turn until the boulder falls
+    featureTimer.append(1)
 
 # unique function because it takes in a message string
 def spawnNote(x, y, msg):
@@ -1434,7 +1480,9 @@ def drawScreen():
     currentLine = ""
     for i in range(int(playerY - round(screenHeight/2)), int(playerY + round(screenHeight/2))):
         for j in range(int(playerX - round(screenWidth/2)), int(playerX + round(screenWidth/2))):
-            if (playerX == j and playerY == i):
+            if (getFeatureType(j, i) == "Boulder" and not isWall(j, i)):
+                currentLine += str(Fore.RED) + "0" + str(Style.RESET_ALL)
+            elif (playerX == j and playerY == i):
                 currentLine += str(Fore.CYAN) + "&" + str(Style.RESET_ALL)
             elif (isDungeonDark and (abs(j - playerX) > viewRange or abs(i - playerY) > viewRange) and not isLit(j, i)):
                 # darkness
@@ -1884,7 +1932,9 @@ def gameOver():
     elif (lastDamageType == "Ghost"):
         deathMessage = "   Tell Luigi he can have his ghosts back.   "  
     elif (lastDamageType == "Explosion"):
-        deathMessage = "   Did you just blow yourself up?   "  
+        deathMessage = "   Did you just blow yourself up?   "
+    elif (lastDamageType == "Boulder"):
+        deathMessage = "   Next time, put your hands up like the ceiling can't hold you.   "  
 
     fullscreenMessage("   GAME OVER   ", False, True, "red", deathMessage)
     input("")
@@ -1921,6 +1971,28 @@ def roomIntro():
         input("")
     elif (floorNumber == finalFloorIndex):
         fullscreenMessage("   That was how they won the war. Necromancy. And they brought a necromancer here?   ", True, True, "cyan", "")
+        input("")
+
+    if (currentDungeonType == 2):
+        # rat cave intro
+        fullscreenMessage("   Something big is around here...   ", True, True, "cyan", "")
+        input("")
+    elif (currentDungeonType == 1):
+        # overgrown cave intro
+        fullscreenMessage("   It's so... green...   ", True, True, "cyan", "")
+        input("")
+    elif (currentDungeonType == 4):
+        # crystal cave intro
+        fullscreenMessage("   These crystals look fragile.   ", True, True, "cyan", "")
+        input("")
+    elif (currentDungeonType == 6):
+        # collapsing cave intro
+        fullscreenMessage("   Watch your head!   ", True, True, "cyan", "")
+        input("")
+    elif (isDungeonDark):
+        # into for a dark dungeon
+        # this only runs if it's not a variant, bc I don't want 2-3 different messages
+        fullscreenMessage("   It's dark in here...   ", True, True, "cyan", "")
         input("")
 
 # main logic function, calls itself
@@ -1969,12 +2041,15 @@ def runGameLogic():
 
     # at the very very end of the turn, do logic relating to features
     if (isExit(playerX, playerY)):
+        # moving on to the next floor upon walking over an exit
         nextFloor(getFeatureData(playerX, playerY))
         roomIntro()
     elif (getFeatureType(playerX, playerY) == "Chest"):
+        # picking up loot when you walk over a chest
         addLoot()
         removeFeature(playerX, playerY)
     elif (getFeatureType(playerX, playerY) == "Berry Bush"):
+        # picking a berry bush
         if (random.randint(0, 10) > 8):
             addItemToInventory(findItemIndex(bushIngredients[random.randint(0, len(bushIngredients)-1)]))
             recordEvent("You pick some berries off of the bush. They look... weird.")
@@ -1982,6 +2057,7 @@ def runGameLogic():
             recordEvent("The bush seems to be picked clean of berries.")
         removeFeature(playerX, playerY)
     elif (getFeatureType(playerX, playerY) == "Grass"):
+        # picking grass
         if (random.randint(0, 10) > 8):
             addItemToInventory(findItemIndex(grassIngredients[random.randint(0, len(grassIngredients)-1)]))
             recordEvent("You look at the grass, there's something else there...")
@@ -1989,6 +2065,7 @@ def runGameLogic():
             recordEvent("You look down, but there's nothing but a few weeds at your feet.")
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
+        # picking up a note
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
             fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True, "cyan", "")
             removeFeature(playerX, playerY)
