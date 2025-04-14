@@ -28,7 +28,7 @@ debugMode = True
 skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear","Hellbow"]
+startingInventory = ["Health Potion", "Sword","Spear","Bomb"]
 defaultHealth = 20
 viewRange = 3
 # --------
@@ -67,7 +67,7 @@ craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potio
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 # holes are destroyed terrain
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal"]
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal","Puddle","Smoke","TNT"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -164,6 +164,10 @@ tooltips = ["w -- move up",
 isBonusTurn = False
 areTipsActive = True
 isDungeonDark = False
+lastDamageType = "Null"
+
+# what variant of dungeon are we in right now
+currentDungeonType = -1
 
 # ------------------------------------------------------
 # ======================================================
@@ -273,6 +277,9 @@ def getDirectionToPlayer(currentX, currentY, avoidWalls):
 
 def damagePlayer(value, damageType):
     global playerHealth
+    global lastDamageType
+
+    lastDamageType = damageType
 
     if (value > 0):
         if (damageType == "Fire"):
@@ -323,7 +330,7 @@ def moveEnemy(index):
     # damaging the player
     # this is done first, so enemies can't move and attack at the same time
     if (isAdjacent(enemyX[index], enemyY[index], playerX, playerY)):
-        damagePlayer(enemyDamage[enemyType[index]],"Attack")
+        damagePlayer(enemyDamage[enemyType[index]],enemyNames[enemyType[index]])
         return
 
     dir = getDirectionToPlayer(enemyX[index], enemyY[index], False)
@@ -399,6 +406,28 @@ def getEnemyCharacter(x, y):
             return enemyCharacters[enemyType[i]]
         
     return "no enemy"
+
+# a bomb explodes at point (x, y) with area of effect a x a (all bombs have box-shaped AOEs)
+def affectArea(x, y, a, dmg, destroyFeatures, spawnFire):
+    # ranged logic
+    for i in range(-a, a + 1):
+        for j in range(-a, a + 1):
+            if (getElementInList(x + j, y + i, enemyX, enemyY) != -1):
+                enemyHealth[getElementInList(x + j, y + i, enemyX, enemyY)] -= dmg
+                recordEvent("Hit " + enemyNames[enemyType[getElementInList(x + j, y + i, enemyX, enemyY)]] + " for " + str(dmg) + " damage.")
+            if(playerX == x + j and playerY == y + i):
+                damagePlayer(dmg, "Explosion")
+            if (getFeatureType(x + j, y + i) == "TNT"):
+                # explode a TNT
+                removeFeature(x + j, y + i)
+                affectArea(x + j, y + i, 2, 6, True, False)
+            if (destroyFeatures):
+                # destroy any features/walls
+                removeFeature(x + j, y + i)
+                spawnSmoke(x + j, y + i)
+                spawnPermanentFeature(x + j, y + i, "Hole")
+            if (spawnFire and not isWall(x + j, y + i)):
+                spawnFlame(x + j, y + i)
 
 # msg is the command string
 def attack(msg):
@@ -479,22 +508,17 @@ def attack(msg):
                     recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
                 if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
                     spawnFlame(hitX + xMod, hitY + yMod)
+                if (getFeatureType(hitX + j, hitY + i) == "TNT"):
+                    # explode a TNT
+                    removeFeature(hitX + j, hitY + i)
+                    affectArea(hitX + j, hitY + i, 2, 6, True, False)
                 if (specialType[findItemIndex(heldWeapon)] == 7):
                     removeFeature(hitX + xMod, hitY + yMod)
-                    spawnHole(hitX + xMod, hitY + yMod)
+                    spawnPermanentFeature(hitX + xMod, hitY + yMod, "Hole")
     else:
         # ranged logic
-        for i in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
-            for j in range(-itemArea[findItemIndex(heldWeapon)], itemArea[findItemIndex(heldWeapon)] + 1):
-
-                if (getElementInList(hitX + j, hitY + i, enemyX, enemyY) != -1):
-                    enemyHealth[getElementInList(hitX + j, hitY + i, enemyX, enemyY)] -= attackDamage
-                    recordEvent("Hit " + enemyNames[enemyType[getElementInList(hitX + j, hitY + i, enemyX, enemyY)]] + " for " + str(attackDamage) + " damage.")
-                if (specialType[findItemIndex(heldWeapon)] == 1 and not isWall(hitX + j, hitY + i)):
-                    spawnFlame(hitX + j, hitY + i)
-                if (specialType[findItemIndex(heldWeapon)] == 7):
-                    removeFeature(hitX + j, hitY + i)
-                    spawnHole(hitX + j, hitY + i)
+        itemIndex = int(findItemIndex(heldWeapon))
+        affectArea(hitX, hitY, itemArea[itemIndex], itemDamage[itemIndex], specialType[itemIndex] == 7, specialType[itemIndex] == 1)
 
     if (isConsumable[findItemIndex(heldWeapon)]):
         inventory.pop(findItemIndexInInventory(heldWeapon))
@@ -668,6 +692,9 @@ def generateDungeon(type):
 
     global isDungeonDark
 
+    global currentDungeonType
+    currentDungeonType = type
+
     currentX = screenWidth/2
     currentY = screenHeight/2
 
@@ -697,13 +724,13 @@ def generateDungeon(type):
 
         if (i != 0):
             if (roomDir == 0):
-                spawnDoor(currentX + width, currentY)
+                spawnPermanentFeature(currentX + width, currentY, "Door")
             elif (roomDir == 1):
-                spawnDoor(currentX - width, currentY)
+                spawnPermanentFeature(currentX - width, currentY, "Door")
             elif (roomDir == 2):
-                spawnDoor(currentX, currentY + height)
+                spawnPermanentFeature(currentX, currentY + height, "Door")
             elif (roomDir == 3):
-                spawnDoor(currentX, currentY - height)
+                spawnPermanentFeature(currentX, currentY - height, "Door")
 
         roomWidth.append(width)
         roomHeight.append(height)
@@ -717,14 +744,22 @@ def generateDungeon(type):
                 for j in range(int(currentY - height + 1), int(currentY + height - 1)):
                     if (getFeatureType(i, j) == "None"):
                         if (random.randint(0, 10) > 9):
-                            spawnBerryBush(i, j)
+                            spawnPermanentFeature(i, j, "Berry Bush")
         elif (type == 4):
             # crystal cave stuff
             for i in range(int(currentX - width + 1), int(currentX + width - 1)):
                 for j in range(int(currentY - height + 1), int(currentY + height - 1)):
                     if (getFeatureType(i, j) == "None"):
                         if (random.randint(0, 10) > 9):
-                            spawnCrystal(i, j)
+                            spawnPermanentFeature(i, j, "Crystal")
+        elif (type == 5):
+            # wet cave stuff
+            for i in range(int(currentX - width + 1), int(currentX + width - 1)):
+                for j in range(int(currentY - height + 1), int(currentY + height - 1)):
+                    if (getFeatureType(i, j) == "None"):
+                        if (random.randint(0, 10) > 5):
+                            spawnPermanentFeature(i, j, "Puddle")
+        # no extra features for the collapsing caves
 
         # darkness isn't actually a type, it just happens randomly
         if (random.randint(0, 10) < 1):
@@ -732,14 +767,18 @@ def generateDungeon(type):
             isDungeonDark = True
 
         # spawning chests
-        if (random.randint(0, 10) > 3 and i > 0):
-            spawnChest(currentX, currentY)
+        if (random.randint(0, 10) > 6 and i > 0):
+            spawnPermanentFeature(currentX, currentY, "Chest")
             if (random.randint(0, 10) > 5):
-                spawnCauldron(currentX, currentY-1)
+                spawnPermanentFeature(currentX, currentY-1, "Cauldron")
 
         # spawning enemies
         if (random.randint(0, 10) > 5):
             spawnEnemyFromCurrentTable(currentX, currentY + 1)
+
+        # spawning a bomb
+        if (random.randint(0, 10) > 5):
+            spawnPermanentFeature(currentX - width + 1, currentY - height + 1, "TNT")
 
         prevWidth = width
         prevHeight = height
@@ -764,8 +803,8 @@ def spawnExit(x, y):
     if (getFeatureType(x, y) != "None"):
         removeFeature(x, y)
 
-    # 0 is normal, 1 is berry cave, 2 is rat cave, 3 is final boss, 4 is crystal cave
-    possibleTypes = 5
+    # 0 is normal, 1 is berry cave, 2 is rat cave, 3 is final boss, 4 is crystal cave, 5 is wet cave, 6 is collapsing cave
+    possibleTypes = 7
     exitType = random.randint(0, possibleTypes-1)
 
     # offseting the index, blah blah
@@ -782,6 +821,8 @@ def spawnExit(x, y):
     # exit always 0 for the first floor
     if (floorNumber == 0):
         exitType = 0
+
+    exitType = 5
 
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
@@ -830,6 +871,9 @@ def spawnEnemy(x, y, name):
 def generateFinalDungeon():
     clearGlobalLists()
 
+    global currentDungeonType
+    currentDungeonType = 3
+
     roomCenterX.append(screenWidth/2)
     roomCenterY.append(screenHeight/2)
     roomWidth.append(12)
@@ -846,6 +890,9 @@ def generateFinalDungeon():
 # the final floor is hardcoded
 def generateRatDungeon():
     clearGlobalLists()
+
+    global currentDungeonType
+    currentDungeonType = 2
 
     roomCenterX.append(screenWidth/2)
     roomCenterY.append(screenHeight/2)
@@ -871,10 +918,10 @@ def generateStartingFloor():
     spawnEnemy(screenWidth/2 + 1, screenHeight/2 - 2, "Dummy")
     spawnEnemy(screenWidth/2 - 12, screenHeight/2 + 2, "Horse")
 
-    spawnCauldron(screenWidth/2 - 2, screenHeight/2 - 2)
+    spawnPermanentFeature(screenWidth/2 - 2, screenHeight/2 - 2, "Cauldron")
 
     spawnNote(screenWidth/2 - 1, screenHeight/2 - 1, "Many descend, few return.")
-    spawnBerryBush(screenWidth/2 - 8, screenHeight/2 - 1)
+    spawnPermanentFeature(screenWidth/2 - 8, screenHeight/2 - 1, "Berry Bush")
 
     movePlayer(screenWidth/2 - 4, screenHeight/2)
 
@@ -888,44 +935,24 @@ def spawnEnemyFromTable(x, y, tableIndex):
     else:
         spawnEnemy(x, y, enemyTable4[random.randint(0, len(enemyTable4) - 1)])
 
-# i can probably condense these 3 functions
+def spawnPermanentFeature(x, y, featureName):
+    featureType.append(featureName)
+    featureX.append(x)
+    featureY.append(y)
+    # 3 turns until the flame dissapears
+    featureTimer.append(-1)
 def spawnFlame(x, y):
     featureType.append("Flame")
     featureX.append(x)
     featureY.append(y)
     # 3 turns until the flame dissapears
     featureTimer.append(3)
-def spawnHole(x, y):
-    featureType.append("Hole")
+def spawnSmoke(x, y):
+    featureType.append("Smoke")
     featureX.append(x)
     featureY.append(y)
-    # destroyed terrain is permanent
-    featureTimer.append(-1)
-def spawnBerryBush(x, y):
-    featureType.append("Berry Bush")
-    featureX.append(x)
-    featureY.append(y)
-    featureTimer.append(-1)
-def spawnCrystal(x, y):
-    featureType.append("Crystal")
-    featureX.append(x)
-    featureY.append(y)
-    featureTimer.append(-1)
-def spawnChest(x, y):
-    featureType.append("Chest")
-    featureX.append(x)
-    featureY.append(y)
-    featureTimer.append(-1)
-def spawnCauldron(x, y):
-    featureType.append("Cauldron")
-    featureX.append(x)
-    featureY.append(y)
-    featureTimer.append(-1)
-def spawnDoor(x, y):
-    featureType.append("Door")
-    featureX.append(x)
-    featureY.append(y)
-    featureTimer.append(-1)
+    # 3 turns until the smoke dissapears
+    featureTimer.append(3)
 def spawnNote(x, y, msg):
     featureType.append("Note: " + msg)
     featureX.append(x)
@@ -1306,6 +1333,8 @@ def drawScreen():
             elif (isDungeonDark and (abs(j - playerX) > viewRange or abs(i - playerY) > viewRange) and not isLit(j, i)):
                 # darkness
                 currentLine += " "
+            elif (getFeatureType(j, i) == "Smoke"):
+                currentLine += str(Fore.WHITE) + "%" + str(Style.RESET_ALL)
             elif (getEnemyCharacter(j, i) != "no enemy"):
                 currentLine += str(Fore.RED) + getEnemyCharacter(j, i) + str(Style.RESET_ALL)
             elif (isNote(j, i)):
@@ -1323,8 +1352,13 @@ def drawScreen():
             elif (getFeatureType(j, i) == "Crystal"):
                 currentLine += str(Fore.MAGENTA) + "▲" + str(Style.RESET_ALL)
                 # these do nothing for now
+            elif (getFeatureType(j, i) == "TNT"):
+                currentLine += str(Fore.MAGENTA) + "⚠" + str(Style.RESET_ALL)
+                # these do nothing for now
             elif (getFeatureType(j, i) == "Chest"):
                 currentLine += str(Fore.GREEN) + "◙" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Puddle"):
+                currentLine += str(Fore.BLUE) + "=" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Flame" and isInsideDungeon(j, i)):
                 currentLine += str(Fore.MAGENTA) + "!" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Hole"):
@@ -1358,7 +1392,7 @@ def blankScreen():
         print(currentLine)
         currentLine = ""
 
-def fullscreenMessage(msg, showContinueMessage, showUI, colorName):
+def fullscreenMessage(msg, showContinueMessage, showUI, colorName, lowerMsg):
     msg = str(msg)
 
     # spacing, for neatness
@@ -1402,6 +1436,12 @@ def fullscreenMessage(msg, showContinueMessage, showUI, colorName):
                 startingIndex = screenWidth / 2 - round(len("======================")/2)
                 if (j >= startingIndex and j < startingIndex + round(len("======================"))):
                     currentLine += getCharacter("======================", j - startingIndex)
+                else:
+                    currentLine += defaultCharacter
+            elif (i == screenHeight/2+3):
+                startingIndex = screenWidth / 2 - round(len(lowerMsg)/2)
+                if (j >= startingIndex and j < startingIndex + round(len(lowerMsg))):
+                    currentLine += getCharacter(lowerMsg, j - startingIndex)
                 else:
                     currentLine += defaultCharacter
             elif (i == screenHeight/2+6 and showContinueMessage):
@@ -1532,33 +1572,33 @@ def drawDivider():
 
 # go through the intro text, should only happen upon booting the game for the first time
 def runIntro():
-    fullscreenMessage("FakeVoxel presents", True, False, "magenta")
+    fullscreenMessage("FakeVoxel presents", True, False, "magenta", "")
     input("")
-    fullscreenMessage("PYROGUE" + " (" + versionString + ")", True, False, "magenta")
+    fullscreenMessage("PYROGUE" + " (" + versionString + ")", True, False, "magenta", "")
     input("")
 
     # exposition
-    fullscreenMessage("   First, the war.   ", True, False, "cyan")
+    fullscreenMessage("   First, the war.   ", True, False, "cyan", "")
     input("")
-    fullscreenMessage("   Then, the siege.   ", True, False, "cyan")
-    input("")
-
-    fullscreenMessage("   We held up for almost a month.   ", True, False, "cyan")
-    input("")
-    fullscreenMessage("   But we couldn't wait forever.   ", True, False, "cyan")
-    input("")
-    fullscreenMessage("   They wanted the king, those were their terms.   ", True, False, "cyan")
-    input("")
-    fullscreenMessage("   Well they got what they wanted.   ", True, False, "cyan")
+    fullscreenMessage("   Then, the siege.   ", True, False, "cyan", "")
     input("")
 
-    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True, False, "cyan")
+    fullscreenMessage("   We held up for almost a month.   ", True, False, "cyan", "")
     input("")
-    fullscreenMessage("   Still wearing the crown.   ", True, False, "cyan")
+    fullscreenMessage("   But we couldn't wait forever.   ", True, False, "cyan", "")
     input("")
-    fullscreenMessage("   ...   ", True, False, "cyan")
+    fullscreenMessage("   They wanted the king, those were their terms.   ", True, False, "cyan", "")
     input("")
-    fullscreenMessage("   My crown.   ", True, False, "cyan")
+    fullscreenMessage("   Well they got what they wanted.   ", True, False, "cyan", "")
+    input("")
+
+    fullscreenMessage("   Rumor has it they killed him, and buried him here.   ", True, False, "cyan", "")
+    input("")
+    fullscreenMessage("   Still wearing the crown.   ", True, False, "cyan", "")
+    input("")
+    fullscreenMessage("   ...   ", True, False, "cyan", "")
+    input("")
+    fullscreenMessage("   My crown.   ", True, False, "cyan", "")
     input("")
 
     blankScreen()
@@ -1567,7 +1607,7 @@ def runIntro():
 def selectGameMode():
     global gameMode
 
-    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False, False, "cyan")
+    fullscreenMessage("   Type the desired game mode and hit enter: 'normal', 'endless'   ", False, False, "cyan", "")
     gameModeInput = input("")
 
     if (gameModeInput == "normal"):
@@ -1579,9 +1619,9 @@ def selectGameMode():
 
     # showing the user what gamemode they picked
     if (gameMode == 0):
-        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True, False, "green")
+        fullscreenMessage("   Normal mode selected. Good luck, traveller.   ", True, False, "green", "")
     else:
-        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True, False, "green")
+        fullscreenMessage("   Endless mode selected. Good luck, traveller.  ", True, False, "green", "")
     
     input("")
 
@@ -1698,41 +1738,58 @@ def nextFloor(exitType):
 
 # called when the player dies
 def gameOver():
-    fullscreenMessage("   GAME OVER   ", False, True, "red")
+    deathMessage = "   You died.   "
+
+    if (lastDamageType == "Fire"):
+        deathMessage = "   That thing on the ground? Yeah, that's fire.   "
+    elif (lastDamageType == "Potion"):
+        deathMessage = "   Was that potion too much for you?   "    
+    elif (lastDamageType == "Rat" or lastDamageType == "Fire Rat"):
+        deathMessage = "   Really? The easy enemy killed you?   "    
+    elif (lastDamageType == "Necromancer"):
+        deathMessage = "   So, so close.   "
+    elif (lastDamageType == "Giant Rat"):
+        deathMessage = "   Giant rats are funny. Also deadly. Apparently.   "
+    elif (lastDamageType == "Ghost"):
+        deathMessage = "   Tell Luigi he can have his ghosts back.   "  
+    elif (lastDamageType == "Explosion"):
+        deathMessage = "   Did you just blow yourself up?   "  
+
+    fullscreenMessage("   GAME OVER   ", False, True, "red", deathMessage)
     input("")
 
 # called once the player is in the final room and there are no enemies
 def gameWin():
-    fullscreenMessage("   The necromancer and his minions fall to the ground, lifeless.   ", True, True, "cyan")
+    fullscreenMessage("   The necromancer and his minions fall to the ground, lifeless.   ", True, True, "cyan", "")
     input("")
 
-    fullscreenMessage("   You climb down one last set of stairs, and there lies the king.   ", True, True, "cyan")
+    fullscreenMessage("   You climb down one last set of stairs, and there lies the king.   ", True, True, "cyan", "")
     input("")
 
-    fullscreenMessage("   On the ground beside him, the crown.   ", True, True, "cyan")
+    fullscreenMessage("   On the ground beside him, the crown.   ", True, True, "cyan", "")
     input("")
 
-    fullscreenMessage("   VICTORY   ", False, True, "green")
+    fullscreenMessage("   VICTORY   ", False, True, "green", "")
     input("")
 
 def roomIntro():
     # first dungeon floor
     if (floorNumber == 1):
-        fullscreenMessage("   The air feels damp. You see something small scurry away.   ", True, True, "cyan")
+        fullscreenMessage("   The air feels damp. You see something small scurry away.   ", True, True, "cyan", "")
         input("")
     elif (floorNumber == round(finalFloorIndex/4)):
-        fullscreenMessage("   You hear voices down the hall. Did they station guards here?.   ", True, True, "cyan")
+        fullscreenMessage("   You hear voices down the hall. Did they station guards here?.   ", True, True, "cyan", "")
         input("")
     elif (floorNumber == round(finalFloorIndex/4*2)):
-        fullscreenMessage("   You feel a rush of cold air against your face. A shimmering figure floats in the distance.   ", True, True, "cyan")
+        fullscreenMessage("   You feel a rush of cold air against your face. A shimmering figure floats in the distance.   ", True, True, "cyan", "")
         input("")
     elif (floorNumber == round(finalFloorIndex/4*3)):
-        fullscreenMessage("   A pile of bones shifts in the corner, and you think back to the siege.  ", True, True, "cyan")
+        fullscreenMessage("   A pile of bones shifts in the corner, and you think back to the siege.  ", True, True, "cyan", "")
         input("")
-        fullscreenMessage("   They didn't have more soldiers. But their soldiers couldn't die.  ", True, True, "cyan")
+        fullscreenMessage("   They didn't have more soldiers. But their soldiers couldn't die.  ", True, True, "cyan", "")
         input("")
     elif (floorNumber == finalFloorIndex):
-        fullscreenMessage("   That was how they won the war. Necromancy. And they brought a necromancer here?   ", True, True, "cyan")
+        fullscreenMessage("   That was how they won the war. Necromancy. And they brought a necromancer here?   ", True, True, "cyan", "")
         input("")
 
 # main logic function, calls itself
@@ -1794,7 +1851,7 @@ def runGameLogic():
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
-            fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True, "cyan")
+            fullscreenMessage("     There is a note that reads: " + substring(getFeatureType(playerX, playerY), 6, len(getFeatureType(playerX, playerY)) - 6) + "     ", True, True, "cyan", "")
             removeFeature(playerX, playerY)
             input("")
 
