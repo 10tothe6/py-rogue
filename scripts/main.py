@@ -5,9 +5,9 @@
 
 # MAIN TOOD LIST:
 
-# ranged enemies
-# bows only work in the current room
-# status effects
+# bomb rat
+# attack command shorthand
+# better rat dungeon
 
 import random
 # the library that I use for ANSI escape codes, which allows me to write colored text in the terminal
@@ -28,7 +28,7 @@ debugMode = True
 skipIntro = True # skip the lore text
 
 # player stuff ------
-startingInventory = ["Health Potion", "Sword","Spear","Bomb"]
+startingInventory = ["Health Potion", "Sword","Spear","Bow"]
 defaultHealth = 20
 viewRange = 3
 # --------
@@ -60,6 +60,9 @@ weapons = ["Sword", "Spear", "Scimitar", "Glaive", "Bow", "Crossbow", "Hellbow",
 # data for crafting recipes
 craftingRecipes = ["Mushroom,Cave Root", "Mushroom,Wildflower",  "Bone,Cave Root",   "Windbloom,Wildflower",   "Strange Berries,Strange Berries",  "Bone,Wildflower"]
 craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potion",  "Swiftness Potion",       "Strange Brew",                     "Strength Potion"]
+# same idea for berry bushes and grass
+bushIngredients = ["Wildflower","Strange Berries"]
+grassIngredients = ["Windbloom", "Cave Root", "Mushroom"]
 
 # --------------------------------------------
 
@@ -67,7 +70,7 @@ craftingResults = ["Health Potion",      "Fire Potion",          "Ironskin Potio
 # fake exits are second exits that lead to special places
 # cauldrons allow you to craft potions using ingredients
 # holes are destroyed terrain
-featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal","Puddle","Smoke","TNT"]
+featureTypes = ["Door", "Chest", "Exit", "Flame", "Note", "Berry Bush", "Cauldron","Hole","Crystal","Puddle","Smoke","TNT","Grass"]
 
 # fire resistance, damage, ironskin, speed
 statusEffectTimers = [0, 0, 0, 0]
@@ -101,6 +104,7 @@ enemyTable4 = ["Undead", "Ghost", "Swordsman"]
 # ============
 
 inventory = []
+arrowCount = 0
 
 playerX = 0
 playerY = 0
@@ -168,6 +172,8 @@ lastDamageType = "Null"
 
 # what variant of dungeon are we in right now
 currentDungeonType = -1
+# hitting a crystal ends the game
+hasHitCrystal = False
 
 # ------------------------------------------------------
 # ======================================================
@@ -176,7 +182,7 @@ currentDungeonType = -1
 # ------------------------------------------------------
 
 # ====================================
-# DEBUG
+# DEBUG (not used during normal gameplay)
 # ====================================
 
 # as the lists get longer, this function allows me to see what indices I missed
@@ -202,7 +208,28 @@ def debugItemData():
 # COMBAT / MOVEMENT
 # ====================================
 
-# ALSO HANDLES FIRE, may want to rename function
+# boolean function for checking if a point is in the same room as the player
+# used to check if throwing a ranged weapon through a wall
+def isInRoomWithPlayer(x, y):
+    playerRoomIndex = -1
+    pointRoomIndex = -1
+
+    # loop through all rooms and get the index of the one the player is in
+    for i in range(0, len(roomCenterX)):
+        if (isInsideOrOnBox(roomCenterX[i], roomCenterY[i], roomWidth[i], roomHeight[i], playerX, playerY)):
+            playerRoomIndex = i
+            break
+    
+    for i in range(0, len(roomCenterX)):
+        if (isInsideOrOnBox(roomCenterX[i], roomCenterY[i], roomWidth[i], roomHeight[i], x, y)):
+            pointRoomIndex = i
+            break
+
+    # -1 and -1 are equal, so this would return true
+    # but this only happens if there are no rooms, in which case we want true
+    return (pointRoomIndex == playerRoomIndex)
+
+# kills any enemies with <=0 health (cleanup process)
 def refreshEnemyData():
     # killing any enemies with 0 or negative health
     startingLength = len(enemyType)
@@ -228,6 +255,7 @@ def moveAllEnemies():
 # 3 = up (actually down since y-axis is reversed)
 
 # this function is used by enemies to go towards the player
+# it tries to account for walls
 def getDirectionToPlayer(currentX, currentY, avoidWalls):
     rawDirection = -1
 
@@ -301,6 +329,7 @@ def damagePlayer(value, damageType):
         # there's nothing to limit you from taking one
         playerHealth -= value
 
+    # do not let the player's health go past what it was originally
     if (playerHealth > defaultHealth):
         playerHealth = defaultHealth
 
@@ -431,10 +460,16 @@ def affectArea(x, y, a, dmg, destroyFeatures, spawnFire):
 
 # msg is the command string
 def attack(msg):
+    global hasHitCrystal
+    global arrowCount
+
     dir = -1
-    isMelee = False
 
     heldWeapon = getEquippedWeapon()
+
+    # in case I ever decide to add the ability to drop items
+    if (heldWeapon == "None"):
+        return
 
     attackRange = 0
     attackDamage = 0
@@ -443,46 +478,62 @@ def attack(msg):
     attackDamage = itemDamage[findItemIndex(heldWeapon)]
 
     if (statusEffectTimers[1] > 0):
+        # the strength effect doubles weapon damage while active
         attackDamage *= 2
 
     attackRange = int(attackRange)
     attackDamage = int(attackDamage)
 
-    # if holding a ranged weapon, the attack command will look like a2,1
-    # if melee, it will look like al, ar, au, ad
-    if (isNumber(getCharacter(msg, 0))):
-        isMelee = False
+    # the command is always processed as x#,# where # is a number
+    # xd, xs, xw and xa are shorthand and are converted to coordinates before being processed
 
-        commaIndex = str(msg).find(",")
+    commaIndex = str(msg).find(",")
 
-        hitX = playerX + int(substring(msg, 0, commaIndex))
-        hitY = playerY - int(substring(msg, commaIndex + 1, len(msg) - commaIndex - 1))
+    xInput = int(substring(msg, 0, commaIndex))
+    yInput = -int(substring(msg, commaIndex + 1, len(msg) - commaIndex - 1))
+
+    # determining where the hit is
+    if (isItemRanged[findItemIndex(heldWeapon)]):
+        # if its a ranged weapon, we can just use the coordinates as-is
+        hitX = playerX + xInput
+        hitY = playerY + yInput
 
         if (abs(hitX - playerX) > attackRange or abs(hitY - playerY) > attackRange):
+            recordEvent("Your weapon falls short.")
+            if (arrowCount > 0):
+                # you miss, you still shoot an arrow
+                arrowCount -= 1
+            return
+        elif (not isInRoomWithPlayer(hitX, hitY)):
+            recordEvent("Your weapon bounces off the wall and misses.")
+            if (arrowCount > 0):
+                # you miss, you still shoot an arrow
+                arrowCount -= 1
             return
     else:
-        isMelee = True
-
         hitX = playerX
         hitY = playerY
-
-        if (getCharacter(msg, 0) == "a"):
+        
+        # if its a melee weapon, we need to figure out what direction we're attacking in
+        if (xInput < 0):
             dir = 0
-        elif (getCharacter(msg, 0) == "d"):
+        elif (xInput > 0):
             dir = 1
-        elif (getCharacter(msg, 0) == "s"):
+        elif (yInput < 0):
             dir = 3
-        if (getCharacter(msg, 0) == "w"):
+        if (yInput > 0):
             dir = 2
-
-    if (heldWeapon == "None"):
-        return
     
     # sometimes a hit can fail, depending on the accuracy of the weapon
     if (random.randint(0, 100) > itemHitChance[findItemIndex(heldWeapon)]):
         return
+    elif (isItemRanged[findItemIndex(heldWeapon)] and arrowCount <= 0 and not isConsumable[findItemIndex(heldWeapon)]):
+        recordEvent("You reach into your quiver, but you have no more arrows.")
+        return
+    elif (isItemRanged[findItemIndex(heldWeapon)] and not isConsumable[findItemIndex(heldWeapon)]):
+        arrowCount -= 1
 
-    if (isMelee):
+    if (not isItemRanged[findItemIndex(heldWeapon)]):
         # melee logic
         for i in range(0, attackRange):
             if (dir == 0):
@@ -502,6 +553,9 @@ def attack(msg):
                     yMod = j
                 else:
                     xMod = j
+
+                if (not isInRoomWithPlayer(hitX + xMod, hitY + yMod)):
+                    continue
                 
                 if (getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY) != -1):
                     enemyHealth[getElementInList(hitX + xMod, hitY + yMod, enemyX, enemyY)] -= attackDamage
@@ -515,6 +569,8 @@ def attack(msg):
                 if (specialType[findItemIndex(heldWeapon)] == 7):
                     removeFeature(hitX + xMod, hitY + yMod)
                     spawnPermanentFeature(hitX + xMod, hitY + yMod, "Hole")
+                if (getFeatureType(hitX + xMod, hitY + yMod) == "Crystal"):
+                    hasHitCrystal = True
     else:
         # ranged logic
         itemIndex = int(findItemIndex(heldWeapon))
@@ -591,6 +647,13 @@ def isInsideBox(x1, y1, w1, h1, x2, y2):
     else:
         return False
     
+# is the point (x2, y2) inside OR ON THE EDGE OF the box defined by the other variables
+def isInsideOrOnBox(x1, y1, w1, h1, x2, y2):
+    if (x2 >= x1 - w1 and x2 <= x1 + w1 and y2 >= y1 - h1 and y2 <= y1 + h1):
+        return True
+    else:
+        return False
+    
 def isInsideDungeon(x, y):
     if (len(roomCenterX) == 0):
         return True
@@ -633,6 +696,9 @@ def isWall(x, y):
     # gotta walk through those
     if (isElementInList(x, y, featureX, featureY)):
         return False
+    
+    if (not isInsideDungeon(x, y)):
+        return True
     
     for i in range(0, len(roomCenterX)):
         if ((x == roomCenterX[i] - roomWidth[i] or x == roomCenterX[i] + roomWidth[i]) and (y <= roomCenterY[i] + roomHeight[i] and y >= roomCenterY[i] - roomHeight[i])):
@@ -691,9 +757,12 @@ def generateDungeon(type):
     clearGlobalLists()
 
     global isDungeonDark
+    global hasHitCrystal
 
     global currentDungeonType
     currentDungeonType = type
+
+    hasHitCrystal = False
 
     currentX = screenWidth/2
     currentY = screenHeight/2
@@ -743,8 +812,10 @@ def generateDungeon(type):
             for i in range(int(currentX - width + 1), int(currentX + width - 1)):
                 for j in range(int(currentY - height + 1), int(currentY + height - 1)):
                     if (getFeatureType(i, j) == "None"):
-                        if (random.randint(0, 10) > 9):
+                        if (random.randint(0, 10) > 8):
                             spawnPermanentFeature(i, j, "Berry Bush")
+                        elif (random.randint(0, 10) > 7):
+                            spawnPermanentFeature(i, j, "Grass")
         elif (type == 4):
             # crystal cave stuff
             for i in range(int(currentX - width + 1), int(currentX + width - 1)):
@@ -822,7 +893,8 @@ def spawnExit(x, y):
     if (floorNumber == 0):
         exitType = 0
 
-    exitType = 5
+    # temp
+    exitType = 1
 
     # since the exit is a feature, we just append its location to all the feature lists
     featureX.append(x)
@@ -942,6 +1014,10 @@ def spawnPermanentFeature(x, y, featureName):
     # 3 turns until the flame dissapears
     featureTimer.append(-1)
 def spawnFlame(x, y):
+    if (currentDungeonType == 5):
+        # no flames in wet caves, only smoke
+        spawnSmoke(x,y)
+        return
     featureType.append("Flame")
     featureX.append(x)
     featureY.append(y)
@@ -1088,6 +1164,8 @@ def addItemFormatting(itemName):
 
 # called when the player opens a chest, adds the loot from the chest to the inventory
 def addLoot():
+    global arrowCount
+
     # first, give the player a random ingredient
     itemName = ingredients[random.randint(0, len(ingredients)-1)]
     inventory.append(itemName)
@@ -1101,6 +1179,8 @@ def addLoot():
 
     inventory.append(itemName)
     recordEvent("Picked up a " + itemName + ".")
+
+    arrowCount += random.randint(0, 5)
 
 def addItemToInventory(index):
     inventory.append(itemTypes[index])
@@ -1333,7 +1413,7 @@ def drawScreen():
             elif (isDungeonDark and (abs(j - playerX) > viewRange or abs(i - playerY) > viewRange) and not isLit(j, i)):
                 # darkness
                 currentLine += " "
-            elif (getFeatureType(j, i) == "Smoke"):
+            elif (getFeatureType(j, i) == "Smoke" and not isWall(j, i)):
                 currentLine += str(Fore.WHITE) + "%" + str(Style.RESET_ALL)
             elif (getEnemyCharacter(j, i) != "no enemy"):
                 currentLine += str(Fore.RED) + getEnemyCharacter(j, i) + str(Style.RESET_ALL)
@@ -1349,6 +1429,8 @@ def drawScreen():
                 currentLine += str(Fore.CYAN) + "↓" + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Berry Bush"):
                 currentLine += str(Fore.GREEN) + "@" + str(Style.RESET_ALL)
+            elif (getFeatureType(j, i) == "Grass"):
+                currentLine += str(Fore.GREEN) + "," + str(Style.RESET_ALL)
             elif (getFeatureType(j, i) == "Crystal"):
                 currentLine += str(Fore.MAGENTA) + "▲" + str(Style.RESET_ALL)
                 # these do nothing for now
@@ -1441,7 +1523,7 @@ def fullscreenMessage(msg, showContinueMessage, showUI, colorName, lowerMsg):
             elif (i == screenHeight/2+3):
                 startingIndex = screenWidth / 2 - round(len(lowerMsg)/2)
                 if (j >= startingIndex and j < startingIndex + round(len(lowerMsg))):
-                    currentLine += getCharacter(lowerMsg, j - startingIndex)
+                    currentLine += str(Fore.MAGENTA) + getCharacter(lowerMsg, j - startingIndex) + str(Style.RESET_ALL)
                 else:
                     currentLine += defaultCharacter
             elif (i == screenHeight/2+6 and showContinueMessage):
@@ -1482,7 +1564,7 @@ def drawUpperUI():
         lineString += "-"
     print(lineString)
 
-    print("Health: " + str(getHealthUIColor()) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "     Floor Number: " + str(Fore.CYAN) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "     Equipped Item: " + str(addItemFormatting(getEquippedWeapon())) + " (dmg: " + str(addDamageFormatting(itemDamage[getIndexInList(getEquippedWeapon(), itemTypes)])) + ")")
+    print("Health: " + str(getHealthUIColor()) + formatNumber(playerHealth, 3) + str(Style.RESET_ALL) + "   Floor Number: " + str(Fore.CYAN) + formatNumber(floorNumber, 3) + str(Style.RESET_ALL) + "   Equipped Item: " + str(addItemFormatting(getEquippedWeapon())) + " (dmg: " + str(addDamageFormatting(itemDamage[getIndexInList(getEquippedWeapon(), itemTypes)])) + ")" + "   Arrows: " + str(Fore.GREEN) + formatNumber(arrowCount, 3) + str(Style.RESET_ALL))
 
     drawDivider()
     # ---------------------------
@@ -1659,7 +1741,7 @@ def promptUserForAction():
 
     # attacking (left, right, down, up)
     elif(getCharacter(action, 0) == "x"):
-        if (len(action) < 2):
+        if (len(action) < 4):
             invalidCommand()
         else:
             attack(action.replace("x","").replace(" ",""))
@@ -1700,12 +1782,15 @@ def resetPlayerValues():
     global floorNumber
     global score
     global inventory
+    global arrowCount
     
     # always start the game with 10 health
     playerHealth = defaultHealth
     floorNumber = 0
     score = 0
     inventory = []
+
+    arrowCount = 10
 
     # give the player their starting inventory
     for i in startingInventory:
@@ -1735,6 +1820,20 @@ def nextFloor(exitType):
         else:
             # for normal floors, just generate a dungeon based on the type
             generateDungeon(exitType)
+
+# don't hit the crystals
+def crystalGameOver():
+    fullscreenMessage("   Your weapon strikes one of the giant crystals, and bounces off.   ", True, True, "red", "")
+    input("")
+
+    fullscreenMessage("   The crystal starts to vibrate, then shake violently.   ", True, True, "red", "")
+    input("")
+
+    fullscreenMessage("   All the other crystals join in. Then you hear a cracking noise...   ", True, True, "red", "")
+    input("")
+
+    fullscreenMessage("   GAME OVER   ", False, True, "red", "    The crystals have fragile egos.   ")
+    input("")
 
 # called when the player dies
 def gameOver():
@@ -1796,6 +1895,7 @@ def roomIntro():
 # the function that is called every "turn"
 def runGameLogic():
     global isBonusTurn
+    global hasHitCrystal
 
     # get the player to type a command, and perform whatever logic that does
     # this function handles all that
@@ -1843,11 +1943,18 @@ def runGameLogic():
         addLoot()
         removeFeature(playerX, playerY)
     elif (getFeatureType(playerX, playerY) == "Berry Bush"):
-        if (random.randint(0, 10) > 5):
-            addItemToInventory(21)
+        if (random.randint(0, 10) > 8):
+            addItemToInventory(findItemIndex(bushIngredients[random.randint(0, len(bushIngredients)-1)]))
             recordEvent("You pick some berries off of the bush. They look... weird.")
         else:
             recordEvent("The bush seems to be picked clean of berries.")
+        removeFeature(playerX, playerY)
+    elif (getFeatureType(playerX, playerY) == "Grass"):
+        if (random.randint(0, 10) > 8):
+            addItemToInventory(findItemIndex(grassIngredients[random.randint(0, len(grassIngredients)-1)]))
+            recordEvent("You look at the grass, there's something else there...")
+        else:
+            recordEvent("You look down, but there's nothing but a few weeds at your feet.")
         removeFeature(playerX, playerY)
     elif (len(getFeatureType(playerX, playerY)) > 4):
         if (substring(getFeatureType(playerX, playerY), 0, 4) == "Note"):
@@ -1864,6 +1971,11 @@ def runGameLogic():
     if (playerHealth <=0):
         gameOver()
         return
+    if (hasHitCrystal):
+        # special end sequence for when you hit a crystal in a crystal cave
+        crystalGameOver()
+        hasHitCrystal = False
+        return
     if (floorNumber == finalFloorIndex and len(enemyType) == 0):
         gameWin()
         return
@@ -1872,8 +1984,11 @@ def runGameLogic():
     drawScreen()
     runGameLogic()
 
+# need to call this function at the beginning in order for colored text to work properly
 colorama_init()
 
+# visualizing the item arrays, used to check if one has the wrong amount of indices
+# not used during normal gameplay
 if (debugMode):
     debugItemData()
 
@@ -1881,9 +1996,12 @@ if (debugMode):
 if (not skipIntro):
     runIntro()
 
+# prompt the user to select either normal or endless mode
 selectGameMode()
 
+# reset/initialize all relevant variables
 startNewGame()
+# we need to show the player the screen once before prompting them to enter a command
 drawScreen()
 
 # calling this starts the main game loop
