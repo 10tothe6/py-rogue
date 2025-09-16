@@ -1,4 +1,4 @@
-![alt text](https://github.com/fakevoxel/py-rogue/blob/master/images/logo_color.png?)
+![alt text](https://github.com/10tothe6/py-rogue/blob/master/images/logo_color.png?)
 
 Things were never the same after the siege. The crown has been stolen. The kingdom is in ruins. But there are rumors that the crown was buried in an old crypt, and you've decided to go looking. You'll either find what you're looking for, or die trying.
 
